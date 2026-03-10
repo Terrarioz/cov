@@ -208,6 +208,28 @@
   .info-chip span { color: var(--green); text-shadow: var(--glow); }
   .gold-chip span { color: var(--amber); text-shadow: var(--amber-glow); }
 
+  .save-btn {
+    cursor: pointer;
+    background: none;
+    color: var(--green);
+    text-shadow: var(--glow);
+    border-color: #1a3a1a;
+    transition: border-color 0.2s, text-shadow 0.2s;
+  }
+  .save-btn:hover { border-color: var(--green); text-shadow: var(--glow), 0 0 30px #00ff41; }
+
+  .delete-save-btn {
+    display: none;
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    color: #555;
+    background: none;
+    border: 1px solid #222;
+    padding: 4px 12px;
+    cursor: pointer;
+  }
+  .delete-save-btn:hover { color: #888; border-color: #444; }
+
   /* ---- CONTENT AREA ---- */
   #content-area {
     display: flex;
@@ -932,6 +954,8 @@
         ╚═════╝ ╚═╝            ╚═╝   ╚═╝  ╚═╝╚══════╝      ╚═══╝   ╚═════╝ ╚═╝╚═════╝ </div>
   <div class="subtitle">◆ PRESS START ◆</div>
   <button class="menu-item" onclick="showCharCreate()">▶ NEW GAME</button>
+  <button class="menu-item" id="continue-btn" style="display:none" onclick="loadGame()">▶ CONTINUE</button>
+  <button id="delete-save-btn" class="delete-save-btn" style="margin-top:-8px" onclick="deleteSave()">🗑 DELETE SAVE</button>
   <div class="version">VER 1.0 — CHRONICLES ENGINE © 2087</div>
   <div style="font-family:'VT323';font-size:15px;color:#222;margin-top:8px;">
     "The void does not sleep. It waits."
@@ -1020,6 +1044,7 @@
       <div class="info-chip gold-chip">⬡ <span id="gold-disp">50</span></div>
       <div class="info-chip">🗺️ <span id="location-disp">???</span></div>
       <div class="info-chip" id="status-disp" style="display:none;color:var(--purple)">⚡ <span id="status-name">OK</span></div>
+      <button class="info-chip save-btn" onclick="saveGame()">💾 SAVE</button>
     </div>
   </div>
 
@@ -1102,6 +1127,7 @@
   <div style="font-family:'VT323';font-size:22px;color:#888;max-width:500px;text-align:center" id="endgame-msg"></div>
   <div style="font-family:'VT323';font-size:20px;color:var(--amber)" id="endgame-stats"></div>
   <button class="menu-item" onclick="location.reload()" style="margin-top:10px">▶ PLAY AGAIN</button>
+  <button id="endgame-delete-btn" class="delete-save-btn" style="margin-top:6px" onclick="deleteAndHideEndgameBtn()">🗑 DELETE SAVE</button>
 </div>
 
 <!-- NOTIFICATION -->
@@ -1133,6 +1159,7 @@ const G = {
   path: null,          // 'order', 'chaos', or 'void'
   companions: [],
   choices: [],
+  currentScene: 'intro', // track current scene for save/load
 };
 
 // ===========================
@@ -1413,6 +1440,7 @@ function goToScene(sceneId) {
   const scene = SCENES[sceneId];
   if (!scene) return;
   clearStory();
+  G.currentScene = sceneId;
   G.location = scene.location || G.location;
   document.getElementById('location-disp').textContent = G.location;
   updateMap(scene.map || 'default');
@@ -2078,6 +2106,7 @@ const SCENES = {
       addStory('You feel lighter. The void-mark on your hand fades slightly.', '');
       G.flags.seal1 = 'order'; G.path = G.path || 'order';
       notify('SEAL 1 LOCKED — ORDER');
+      setTimeout(() => saveGame(true), 500);
     },
     choices: [
       { text: 'Return to Commander Vael', action: () => goToScene('vael_after_seal1') },
@@ -2095,6 +2124,7 @@ const SCENES = {
       addItem('void_crystal'); G.atk += 30; updateBars(); renderCharStats();
       G.flags.seal1 = 'chaos'; G.flags.crystal1 = true;
       G.path = G.flags.pledgedVoid ? 'void' : 'chaos';
+      setTimeout(() => saveGame(true), 500);
     },
     choices: [
       { text: 'Head to the Void Wastes (Second Seal)', action: () => goToScene('void_wastes') },
@@ -2180,6 +2210,7 @@ const SCENES = {
       addStory('+50 XP for closing the Seal.', 'loot');
       gainXP(50); G.flags.seal2 = 'order';
       notify('SEAL 2 LOCKED — ORDER');
+      setTimeout(() => saveGame(true), 500);
     },
     choices: [
       { text: 'Return to the Citadel for the Third Seal', action: () => goToScene('before_final') },
@@ -2196,6 +2227,7 @@ const SCENES = {
       addItem('void_crystal'); G.atk += 40; G.flags.crystal2 = true;
       G.flags.seal2 = 'chaos';
       updateBars(); renderCharStats();
+      setTimeout(() => saveGame(true), 500);
     },
     choices: [
       { text: 'Head to the Final Seal — the Citadel\'s core', action: () => goToScene('before_final') },
@@ -2671,6 +2703,7 @@ function endCombat(playerWon) {
     logCombat(`Victory! +${enemy.xp} XP +${enemy.gold} gold`, 'player_atk');
     setTimeout(() => {
       document.getElementById('combat-overlay').classList.remove('active');
+      saveGame(true);
       if (combatCallback) combatCallback();
     }, 1200);
   } else {
@@ -3074,6 +3107,7 @@ function showEndGame(title, art, msg) {
       `${G.playerName} | Lv.${G.level} ${G.class.toUpperCase()} | ${kills} enemies slain | ${G.gold} gold`;
     
     overlay.classList.add('active');
+    if (hasSave()) document.getElementById('endgame-delete-btn').style.display = 'block';
   }, 1500);
 }
 
@@ -3091,12 +3125,128 @@ function showGameOver() {
   document.getElementById('endgame-msg').textContent = 'The Void consumed you. The Gate remains open. The world descends into darkness...';
   document.getElementById('endgame-stats').textContent = `${G.playerName} | Lv.${G.level} | Killed ${G.kills} enemies`;
   document.getElementById('endgame-overlay').classList.add('active');
+  if (hasSave()) document.getElementById('endgame-delete-btn').style.display = 'block';
+}
+
+// ===========================
+// SAVE / LOAD SYSTEM
+// ===========================
+const SAVE_KEY = 'cotv_save';
+
+function saveGame(silent) {
+  try {
+    const saveData = {
+      playerName: G.playerName,
+      class: G.class,
+      level: G.level,
+      hp: G.hp, maxHp: G.maxHp,
+      mp: G.mp, maxMp: G.maxMp,
+      xp: G.xp, xpNeeded: G.xpNeeded,
+      gold: G.gold,
+      atk: G.atk, def: G.def, spd: G.spd, int: G.int, crit: G.crit,
+      location: G.location,
+      currentScene: G.currentScene,
+      flags: G.flags,
+      equipped: G.equipped,
+      abilities: G.abilities,
+      kills: G.kills,
+      turn: G.turn,
+      chapter: G.chapter,
+      path: G.path,
+      companions: G.companions,
+      choices: G.choices,
+      inventoryIds: G.inventory.map(item => item.id),
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+    if (!silent) notify('💾 Game Saved!');
+  } catch (e) {
+    notify('⚠ Save failed! (storage unavailable)');
+  }
+}
+
+function loadGame() {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (!raw) return;
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch (e) {
+    notify('⚠ Save file corrupted. Please start a new game.');
+    deleteSave();
+    return;
+  }
+
+  // Restore primitives and arrays
+  const primitiveKeys = ['playerName','class','level','hp','maxHp','mp','maxMp',
+    'xp','xpNeeded','gold','atk','def','spd','int','crit','location','currentScene',
+    'kills','turn','chapter','path'];
+  primitiveKeys.forEach(k => { if (data[k] !== undefined) G[k] = data[k]; });
+  G.flags = data.flags || {};
+  G.equipped = data.equipped || { weapon: null, armor: null, accessory: null };
+  G.abilities = data.abilities || [];
+  G.companions = data.companions || [];
+  G.choices = data.choices || [];
+
+  // Re-hydrate inventory from item IDs (filter out any unknown IDs)
+  G.inventory = (data.inventoryIds || []).filter(id => ITEMS[id]).map(id => ({ id, ...ITEMS[id] }));
+
+  // Show main layout
+  document.getElementById('title-screen').style.display = 'none';
+  document.getElementById('char-create').style.display = 'none';
+  document.getElementById('main-layout').style.display = 'flex';
+
+  // Restore character panel header and sprite
+  const cd = CLASS_DATA[G.class];
+  if (cd) {
+    document.querySelector('#char-panel .panel-header').textContent = `◈ ${G.playerName}`;
+    document.getElementById('player-sprite').textContent = cd.sprite;
+    document.getElementById('player-sprite').style.color = cd.color;
+  }
+
+  updateBars();
+  updateGold();
+  renderInventory();
+  renderAbilities();
+  renderCharStats();
+  document.getElementById('level-disp').textContent = G.level;
+  document.getElementById('location-disp').textContent = G.location;
+
+  // Go to last scene (fall back to ashford_arrive if invalid)
+  const scene = G.currentScene && SCENES[G.currentScene] ? G.currentScene : 'ashford_arrive';
+  goToScene(scene);
+
+  notify('▶ Save loaded!');
+}
+
+function deleteSave() {
+  localStorage.removeItem(SAVE_KEY);
+  updateTitleButtons();
+  notify('🗑 Save deleted.');
+}
+
+function deleteAndHideEndgameBtn() {
+  deleteSave();
+  document.getElementById('endgame-delete-btn').style.display = 'none';
+}
+
+function hasSave() {
+  return !!localStorage.getItem(SAVE_KEY);
+}
+
+function updateTitleButtons() {
+  const exists = hasSave();
+  document.getElementById('continue-btn').style.display = exists ? 'block' : 'none';
+  document.getElementById('delete-save-btn').style.display = exists ? 'block' : 'none';
 }
 
 // ===========================
 // TITLE SCREEN SETUP
 // ===========================
 function showCharCreate() {
+  if (hasSave()) {
+    if (!confirm('A save file exists. Start a new game? Your current save will be lost.')) return;
+    deleteSave();
+  }
   document.getElementById('title-screen').style.display = 'none';
   document.getElementById('char-create').style.display = 'flex';
 }
@@ -3113,6 +3263,7 @@ document.addEventListener('keydown', (e) => {
 
 // Auto-init
 updateMap('default');
+updateTitleButtons();
 </script>
 </body>
 </html>
