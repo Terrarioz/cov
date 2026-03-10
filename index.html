@@ -751,6 +751,56 @@
 
   #shop-overlay.active { display: flex; }
 
+  /* CODES BUTTON */
+  .codes-btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 7px;
+    padding: 3px 8px;
+    border: 1px solid #222;
+    background: transparent;
+    color: #333;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.1s;
+  }
+  .codes-btn:hover { border-color: #444; color: #555; }
+
+  /* CODES OVERLAY */
+  #codes-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.95);
+    z-index: 4000;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+  #codes-overlay.active { display: flex; }
+
+  #code-input {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid var(--green);
+    color: var(--green);
+    font-family: 'VT323', monospace;
+    font-size: 24px;
+    text-align: center;
+    outline: none;
+    width: 320px;
+    padding: 6px;
+    text-shadow: var(--glow);
+    letter-spacing: 4px;
+  }
+
+  #code-response {
+    font-family: 'VT323', monospace;
+    font-size: 20px;
+    min-height: 28px;
+    letter-spacing: 2px;
+  }
+
   .shop-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -1021,6 +1071,7 @@
       <div class="info-chip">🗺️ <span id="location-disp">???</span></div>
       <div class="info-chip" id="status-disp" style="display:none;color:var(--purple)">⚡ <span id="status-name">OK</span></div>
     </div>
+    <button class="codes-btn" onclick="openCodesOverlay()">CODES</button>
   </div>
 
   <div id="content-area">
@@ -1086,6 +1137,16 @@
   <div style="font-family:'VT323';font-size:20px;color:#555" id="shop-gold-disp">Your gold: 50</div>
   <div class="shop-grid" id="shop-items"></div>
   <button class="combat-btn" onclick="closeShop()" style="margin-top:6px">LEAVE SHOP</button>
+</div>
+
+<!-- CODES OVERLAY -->
+<div id="codes-overlay">
+  <div style="font-family:'Press Start 2P';font-size:12px;color:var(--green);text-shadow:var(--glow);letter-spacing:3px">&gt; BACKDOOR ACCESS</div>
+  <div style="font-family:'VT323';font-size:18px;color:#444;letter-spacing:2px">ENTER ACCESS CODE</div>
+  <input id="code-input" type="text" maxlength="32" placeholder="_ _ _ _ _" autocomplete="off">
+  <button class="combat-btn" onclick="submitCode()">[ENTER]</button>
+  <div id="code-response"></div>
+  <button class="combat-btn" onclick="document.getElementById('codes-overlay').classList.remove('active')" style="margin-top:8px;font-size:10px;opacity:0.6">[CLOSE TERMINAL]</button>
 </div>
 
 <!-- LEVEL UP OVERLAY -->
@@ -2861,6 +2922,100 @@ function closeShop() {
 }
 
 // ===========================
+// CODES / BACKGATE SYSTEM
+// ===========================
+function openCodesOverlay() {
+  document.getElementById('code-input').value = '';
+  document.getElementById('code-response').textContent = '';
+  document.getElementById('codes-overlay').classList.add('active');
+  document.getElementById('code-input').focus();
+}
+
+function submitCode() {
+  const code = document.getElementById('code-input').value.trim().toUpperCase();
+  const resp = document.getElementById('code-response');
+  document.getElementById('code-input').value = '';
+
+  switch (code) {
+    case 'ZANEGOATEDFR':
+      G.hp = G.maxHp;
+      G.mp = G.maxMp;
+      updateBars();
+      resp.style.color = 'var(--green)';
+      resp.style.textShadow = 'var(--glow)';
+      resp.textContent = '> VITAL SIGNS RESTORED. HP AND MP FULLY REGENERATED.';
+      break;
+
+    case 'THISGAMEISCOOL2026':
+      G.gold += 500;
+      updateGold();
+      resp.style.color = 'var(--green)';
+      resp.style.textShadow = 'var(--glow)';
+      resp.textContent = '> TREASURY ACCESSED. +500 GOLD DEPOSITED.';
+      break;
+
+    case 'COV2026':
+      for (let i = 0; i < 3; i++) {
+        addItem('void_blade');
+        addItem('void_armor');
+        addItem('amulet_power');
+      }
+      renderInventory();
+      updateBars();
+      renderCharStats();
+      resp.style.color = 'var(--green)';
+      resp.style.textShadow = 'var(--glow)';
+      resp.textContent = '> ARMORY UNLOCKED. VOID GEAR ADDED TO INVENTORY.';
+      break;
+
+    case '10MARCH2026':
+      gainXP(999);
+      renderCharStats();
+      renderAbilities();
+      resp.style.color = 'var(--green)';
+      resp.style.textShadow = 'var(--glow)';
+      resp.textContent = '> EXPERIENCE MATRIX OVERLOADED. +999 XP INJECTED.';
+      break;
+
+    case 'TERRARIOZ':
+      G.hp = 9999;
+      G.maxHp = 9999;
+      G.mp = 9999;
+      G.maxMp = 9999;
+      G.atk = 999;
+      G.def = 999;
+      G.int = 999;
+      G.spd = 999;
+      G.crit = 100;
+      G.gold = 9999;
+      Object.keys(ABILITIES).forEach(id => { if (!G.abilities.includes(id)) G.abilities.push(id); });
+      addItem('void_blade');
+      addItem('void_armor');
+      addItem('amulet_power');
+      updateBars();
+      updateGold();
+      renderInventory();
+      renderCharStats();
+      renderAbilities();
+      notify('⚡ GOD MODE ACTIVATED!');
+      resp.style.color = 'var(--green)';
+      resp.style.textShadow = 'var(--glow)';
+      resp.textContent = '> ⚡ GOD MODE ACTIVATED. ALL STATS MAXIMIZED. YOU ARE UNSTOPPABLE. ⚡';
+      break;
+
+    default:
+      resp.style.color = '#552222';
+      resp.style.textShadow = 'none';
+      resp.textContent = '> ERROR: UNKNOWN ACCESS CODE. TRY AGAIN.';
+      break;
+  }
+}
+
+document.getElementById('code-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') submitCode();
+});
+
+// ===========================
 // RENDERS
 // ===========================
 function updateBars() {
@@ -3104,6 +3259,7 @@ function showCharCreate() {
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
   if (document.getElementById('char-name-input') === document.activeElement) return;
+  if (document.getElementById('code-input') === document.activeElement) return;
   const choices = document.querySelectorAll('#choices-area .choice-btn:not(:disabled)');
   const num = parseInt(e.key);
   if (num >= 1 && num <= choices.length) {
