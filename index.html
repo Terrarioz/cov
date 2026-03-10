@@ -84,7 +84,7 @@
 
   .ascii-title {
     font-family: 'VT323', monospace;
-    font-size: clamp(10px, 3vw, 40px);
+    font-size: clamp(7px, 1.6vw, 22px);
     color: var(--green);
     text-shadow: var(--glow);
     text-align: center;
@@ -1367,6 +1367,7 @@ let currentEnemy = null;
 let combatTurn = 0;
 let playerDodge = false;
 let currentShop = 'village';
+let shopReturnScene = null;
 let typewriterQueue = [];
 let isTyping = false;
 
@@ -1516,7 +1517,7 @@ const SCENES = {
       const chs = [
         { text: 'Visit the Oracle\'s tower', action: () => goToScene('oracle') },
         { text: 'Talk to the villagers at the tavern', action: () => goToScene('tavern') },
-        { text: 'Browse the merchant\'s shop', action: () => openShop('village'), cls: 'shop-choice' },
+        { text: 'Browse the merchant\'s shop', action: () => openShop('village', 'ashford_arrive'), cls: 'shop-choice' },
         { text: 'Head into the Ashford woods (patrol)', action: () => startCombat('wolf', () => goToScene('ashford_woods'), 'A SHADOW WOLF lunges from the trees!') },
       ];
       if (G.flags.hasSoulGem) chs.push({ text: 'Take the sealed road north (Citadel)', action: () => goToScene('citadel_road') });
@@ -1904,7 +1905,7 @@ const SCENES = {
       return [
         { text: 'Claim to be an ally against the Void', action: () => goToScene('citadel_ally') },
         { text: 'Demand to see Commander Vael', action: () => goToScene('citadel_vael') },
-        { text: 'Visit the citadel shop first', action: () => openShop('citadel'), cls: 'shop-choice' },
+        { text: 'Visit the citadel shop first', action: () => openShop('citadel', 'citadel_gates'), cls: 'shop-choice' },
       ];
     }
   },
@@ -1937,7 +1938,7 @@ const SCENES = {
     choices: [
       { text: 'Accept the Trial', action: () => startCombat('darkKnight', () => goToScene('trial_victory'), '⚔ TRIAL ARENA — You face CHAMPION GORAG!') },
       { text: 'Ask about the Second Seal', action: () => goToScene('vael_second_seal') },
-      { text: 'Browse the Citadel shop', action: () => openShop('citadel'), cls: 'shop-choice' },
+      { text: 'Browse the Citadel shop', action: () => openShop('citadel', 'citadel_vael'), cls: 'shop-choice' },
     ]
   },
 
@@ -1969,7 +1970,7 @@ const SCENES = {
     },
     choices: [
       { text: 'Descend into the Crypts (First Seal)', action: () => goToScene('citadel_crypts') },
-      { text: 'Rest and restock first', action: () => openShop('citadel') },
+      { text: 'Rest and restock first', action: () => openShop('citadel', 'trial_victory') },
     ]
   },
 
@@ -2112,7 +2113,7 @@ const SCENES = {
       addItem('void_armor'); G.flags.hasWastesMap = true;
     },
     choices: [
-      { text: 'Equip gear and head to the Void Wastes', action: () => openShop('citadel') },
+      { text: 'Equip gear and head to the Void Wastes', action: () => openShop('citadel', 'vael_after_seal1') },
       { text: 'Head directly to the Void Wastes', action: () => goToScene('void_wastes') },
     ]
   },
@@ -2826,8 +2827,9 @@ function useItem(index) {
   }
 }
 
-function openShop(shopId) {
+function openShop(shopId, returnScene) {
   currentShop = shopId;
+  shopReturnScene = returnScene || null;
   document.getElementById('shop-overlay').classList.add('active');
   document.getElementById('shop-gold-disp').textContent = `Your gold: ${G.gold} ⬡`;
   const grid = document.getElementById('shop-items');
@@ -2858,6 +2860,10 @@ function openShop(shopId) {
 
 function closeShop() {
   document.getElementById('shop-overlay').classList.remove('active');
+  if (shopReturnScene) {
+    goToScene(shopReturnScene);
+    shopReturnScene = null;
+  }
 }
 
 // ===========================
