@@ -1,0 +1,3118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHRONICLES OF THE VOID</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap');
+
+  :root {
+    --green: #00ff41;
+    --dark-green: #003b00;
+    --amber: #ffb000;
+    --red: #ff2020;
+    --blue: #00cfff;
+    --purple: #cc00ff;
+    --bg: #000000;
+    --panel: #0a0a0a;
+    --border: #1a3a1a;
+    --glow: 0 0 8px #00ff41, 0 0 20px #00ff4133;
+    --amber-glow: 0 0 8px #ffb000, 0 0 20px #ffb00033;
+    --red-glow: 0 0 8px #ff2020, 0 0 20px #ff202033;
+    --blue-glow: 0 0 8px #00cfff, 0 0 20px #00cfff33;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #000;
+    color: var(--green);
+    font-family: 'VT323', monospace;
+    font-size: 20px;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    cursor: default;
+  }
+
+  /* SCANLINE OVERLAY */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* CRT VIGNETTE */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.8) 100%);
+    pointer-events: none;
+    z-index: 9998;
+  }
+
+  #game {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    position: relative;
+  }
+
+  /* ---- TITLE SCREEN ---- */
+  #title-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 20px;
+    animation: fadeIn 1s ease;
+  }
+
+  .ascii-title {
+    font-family: 'VT323', monospace;
+    font-size: clamp(10px, 3vw, 40px);
+    color: var(--green);
+    text-shadow: var(--glow);
+    text-align: center;
+    line-height: 1.1;
+    white-space: pre;
+    animation: flicker 4s infinite;
+  }
+
+  @keyframes flicker {
+    0%,96%,100% { opacity: 1; }
+    97% { opacity: 0.7; }
+    98% { opacity: 1; }
+    99% { opacity: 0.5; }
+  }
+
+  .subtitle { 
+    font-family: 'VT323', monospace;
+    font-size: 24px; 
+    color: var(--amber);
+    text-shadow: var(--amber-glow);
+    letter-spacing: 4px;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .version { font-family: 'VT323', monospace; font-size: 16px; color: #333; }
+
+  /* ---- MAIN LAYOUT ---- */
+  #main-layout {
+    display: none;
+    height: 100vh;
+    flex-direction: column;
+  }
+
+  #top-bar {
+    display: flex;
+    border-bottom: 2px solid var(--border);
+    background: #050505;
+    padding: 6px 10px;
+    gap: 12px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .stat-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 120px;
+  }
+
+  .stat-label {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 7px;
+    color: #444;
+    text-transform: uppercase;
+  }
+
+  .stat-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .stat-bar {
+    height: 12px;
+    background: #111;
+    border: 1px solid #333;
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-fill {
+    height: 100%;
+    transition: width 0.4s ease;
+    position: relative;
+  }
+
+  .stat-fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(90deg, transparent, transparent 4px, rgba(255,255,255,0.1) 4px, rgba(255,255,255,0.1) 5px);
+  }
+
+  .hp-fill { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .mp-fill { background: var(--blue); box-shadow: 0 0 6px var(--blue); }
+  .xp-fill { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+
+  .stat-num {
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    min-width: 55px;
+    text-align: right;
+  }
+
+  .hp-num { color: var(--red); text-shadow: var(--red-glow); }
+  .mp-num { color: var(--blue); text-shadow: var(--blue-glow); }
+  .xp-num { color: var(--amber); text-shadow: var(--amber-glow); }
+
+  .top-info {
+    margin-left: auto;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+
+  .info-chip {
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    padding: 2px 10px;
+    border: 1px solid #333;
+    color: #888;
+  }
+
+  .info-chip span { color: var(--green); text-shadow: var(--glow); }
+  .gold-chip span { color: var(--amber); text-shadow: var(--amber-glow); }
+
+  /* ---- CONTENT AREA ---- */
+  #content-area {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* LEFT: MAP / SCENE */
+  #scene-panel {
+    width: 260px;
+    border-right: 2px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    background: #030303;
+    flex-shrink: 0;
+  }
+
+  .panel-header {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    color: var(--green);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    text-shadow: var(--glow);
+    background: #040f04;
+    letter-spacing: 2px;
+  }
+
+  #map-canvas {
+    flex: 1;
+    padding: 8px;
+    font-family: 'VT323', monospace;
+    font-size: 15px;
+    line-height: 1.3;
+    color: var(--dark-green);
+    overflow: hidden;
+    white-space: pre;
+  }
+
+  .map-player { color: var(--amber); text-shadow: var(--amber-glow); }
+  .map-enemy { color: var(--red); }
+  .map-npc { color: var(--blue); }
+  .map-item { color: var(--purple); }
+  .map-wall { color: #1a2a1a; }
+  .map-floor { color: #0d1a0d; }
+
+  /* MIDDLE: MAIN TEXT */
+  #story-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  #story-text {
+    flex: 1;
+    padding: 16px 20px;
+    overflow-y: auto;
+    font-family: 'VT323', monospace;
+    font-size: 22px;
+    line-height: 1.5;
+    color: #aaffaa;
+    scrollbar-width: thin;
+    scrollbar-color: var(--green) #000;
+  }
+
+  #story-text::-webkit-scrollbar { width: 6px; }
+  #story-text::-webkit-scrollbar-track { background: #000; }
+  #story-text::-webkit-scrollbar-thumb { background: var(--green); }
+
+  .story-line { 
+    margin-bottom: 6px;
+    animation: textAppear 0.2s ease;
+  }
+
+  @keyframes textAppear {
+    from { opacity: 0; transform: translateX(-4px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .story-location {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: var(--amber);
+    text-shadow: var(--amber-glow);
+    margin-bottom: 12px;
+    padding: 4px 0;
+    border-bottom: 1px solid #1a2a00;
+    letter-spacing: 2px;
+  }
+
+  .story-event { color: var(--amber); }
+  .story-combat { color: var(--red); text-shadow: var(--red-glow); }
+  .story-loot { color: var(--purple); text-shadow: 0 0 8px var(--purple); }
+  .story-danger { color: var(--red); animation: redFlash 0.5s infinite alternate; }
+  .story-system { color: #444; font-style: italic; }
+  .story-npc { color: var(--blue); }
+  .story-choice-made { color: #555; }
+
+  @keyframes redFlash {
+    from { opacity: 0.6; }
+    to { opacity: 1; }
+  }
+
+  #choices-area {
+    border-top: 2px solid var(--border);
+    padding: 10px 14px;
+    background: #030303;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+
+  .choice-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: 1px solid #1a3a1a;
+    color: var(--green);
+    font-family: 'VT323', monospace;
+    font-size: 20px;
+    padding: 8px 14px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .choice-btn::before {
+    content: '▶ ';
+    color: var(--amber);
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+
+  .choice-btn:hover {
+    background: #0a1a0a;
+    border-color: var(--green);
+    color: #fff;
+    text-shadow: 0 0 8px #fff;
+    padding-left: 20px;
+  }
+
+  .choice-btn:hover::before { opacity: 1; }
+
+  .choice-btn:active {
+    background: #0f2a0f;
+    transform: translateX(2px);
+  }
+
+  .choice-btn.danger-choice { border-color: #3a1a1a; color: #ff8080; }
+  .choice-btn.danger-choice:hover { background: #1a0a0a; border-color: var(--red); }
+  .choice-btn.special-choice { border-color: #1a1a3a; color: #8080ff; }
+  .choice-btn.special-choice:hover { background: #0a0a1a; border-color: var(--purple); }
+  .choice-btn.shop-choice { border-color: #3a3a00; color: var(--amber); }
+  .choice-btn.shop-choice:hover { background: #1a1a00; border-color: var(--amber); }
+
+  .choice-cost {
+    float: right;
+    font-size: 16px;
+    color: var(--amber);
+  }
+
+  /* RIGHT: CHARACTER */
+  #char-panel {
+    width: 220px;
+    border-left: 2px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    background: #030303;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+
+  .char-sprite {
+    text-align: center;
+    padding: 12px;
+    font-family: 'VT323', monospace;
+    font-size: 13px;
+    line-height: 1.2;
+    border-bottom: 1px solid var(--border);
+    white-space: pre;
+    color: var(--green);
+    text-shadow: var(--glow);
+  }
+
+  .char-stats {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .char-stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    padding: 1px 0;
+    border-bottom: 1px solid #0a1a0a;
+  }
+
+  .char-stat-name { color: #555; font-size: 14px; letter-spacing: 1px; }
+  .char-stat-val { color: var(--green); text-shadow: var(--glow); }
+  .char-stat-val.boosted { color: var(--blue); text-shadow: var(--blue-glow); }
+
+  .inventory-grid {
+    padding: 8px 12px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+  }
+
+  .inv-slot {
+    aspect-ratio: 1;
+    border: 1px solid #1a2a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    background: #050505;
+    cursor: pointer;
+    position: relative;
+    transition: border-color 0.1s;
+  }
+
+  .inv-slot:hover {
+    border-color: var(--green);
+    background: #0a1a0a;
+  }
+
+  .inv-slot.equipped { border-color: var(--amber); box-shadow: inset 0 0 6px rgba(255,176,0,0.2); }
+  .inv-slot.empty { cursor: default; }
+  .inv-slot .item-count {
+    position: absolute;
+    bottom: 1px;
+    right: 3px;
+    font-size: 11px;
+    color: var(--amber);
+    font-family: 'VT323', monospace;
+  }
+
+  .abilities-list {
+    padding: 8px 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .ability-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    padding: 3px 0;
+    border-bottom: 1px solid #0a1a0a;
+    cursor: pointer;
+  }
+
+  .ability-item:hover { color: var(--blue); }
+  .ability-name { color: var(--blue); font-size: 17px; }
+  .ability-cost { color: #444; font-size: 14px; }
+
+  /* COMBAT OVERLAY */
+  #combat-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 1000;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+
+  #combat-overlay.active { display: flex; }
+
+  .combat-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 18px;
+    color: var(--red);
+    text-shadow: var(--red-glow);
+    animation: redFlash 0.6s infinite alternate;
+    letter-spacing: 4px;
+  }
+
+  .combat-arena {
+    display: flex;
+    gap: 40px;
+    align-items: center;
+    width: 700px;
+    max-width: 95vw;
+  }
+
+  .combatant {
+    flex: 1;
+    border: 2px solid #333;
+    padding: 16px;
+    background: #050505;
+    text-align: center;
+  }
+
+  .combatant.player-side { border-color: var(--green); }
+  .combatant.enemy-side { border-color: var(--red); }
+
+  .combatant-sprite {
+    font-family: 'VT323', monospace;
+    font-size: 13px;
+    line-height: 1.2;
+    white-space: pre;
+    margin-bottom: 8px;
+  }
+
+  .player-side .combatant-sprite { color: var(--green); text-shadow: var(--glow); }
+  .enemy-side .combatant-sprite { color: var(--red); text-shadow: var(--red-glow); }
+
+  .combatant-name {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    margin-bottom: 8px;
+  }
+
+  .player-side .combatant-name { color: var(--green); }
+  .enemy-side .combatant-name { color: var(--red); }
+
+  .combat-hp-bar {
+    height: 16px;
+    background: #111;
+    border: 1px solid #333;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+
+  .combat-hp-fill {
+    height: 100%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    transition: width 0.5s ease;
+  }
+
+  .enemy-side .combat-hp-fill { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+  .combat-hp-text {
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    color: #888;
+  }
+
+  .vs-symbol {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 24px;
+    color: var(--amber);
+    text-shadow: var(--amber-glow);
+  }
+
+  #combat-log {
+    width: 700px;
+    max-width: 95vw;
+    height: 80px;
+    overflow-y: auto;
+    border: 1px solid #222;
+    padding: 8px 12px;
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    background: #050505;
+    color: #aaa;
+  }
+
+  .combat-log-line { margin-bottom: 2px; }
+  .log-player-atk { color: var(--green); }
+  .log-enemy-atk { color: var(--red); }
+  .log-miss { color: #444; }
+  .log-crit { color: var(--amber); text-shadow: var(--amber-glow); }
+  .log-status { color: var(--purple); }
+  .log-heal { color: #00ff88; }
+
+  #combat-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .combat-btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    padding: 10px 16px;
+    border: 2px solid var(--green);
+    background: transparent;
+    color: var(--green);
+    cursor: pointer;
+    transition: all 0.1s;
+    letter-spacing: 1px;
+  }
+
+  .combat-btn:hover {
+    background: var(--green);
+    color: #000;
+    box-shadow: var(--glow);
+  }
+
+  .combat-btn.red { border-color: var(--red); color: var(--red); }
+  .combat-btn.red:hover { background: var(--red); color: #000; box-shadow: var(--red-glow); }
+  .combat-btn.blue { border-color: var(--blue); color: var(--blue); }
+  .combat-btn.blue:hover { background: var(--blue); color: #000; }
+  .combat-btn.amber { border-color: var(--amber); color: var(--amber); }
+  .combat-btn.amber:hover { background: var(--amber); color: #000; }
+  .combat-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* STATUS EFFECTS */
+  .status-icons {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+
+  .status-icon {
+    font-size: 16px;
+    padding: 1px 4px;
+    border: 1px solid #333;
+    font-family: 'VT323', monospace;
+  }
+
+  /* NOTIFICATION */
+  #notif {
+    position: fixed;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0a1a0a;
+    border: 2px solid var(--green);
+    color: var(--green);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    padding: 10px 20px;
+    text-align: center;
+    z-index: 2000;
+    display: none;
+    text-shadow: var(--glow);
+    box-shadow: var(--glow);
+    max-width: 400px;
+  }
+
+  /* LEVEL UP */
+  #levelup-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.95);
+    z-index: 3000;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+  }
+
+  #levelup-overlay.active { display: flex; }
+
+  .levelup-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 22px;
+    color: var(--amber);
+    text-shadow: var(--amber-glow);
+    animation: pulse 0.5s infinite;
+    letter-spacing: 6px;
+  }
+
+  .levelup-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    max-width: 500px;
+  }
+
+  .levelup-choice {
+    border: 2px solid #333;
+    padding: 14px 12px;
+    background: #050505;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    font-family: 'VT323', monospace;
+  }
+
+  .levelup-choice:hover {
+    border-color: var(--amber);
+    background: #1a1a00;
+    box-shadow: var(--amber-glow);
+  }
+
+  .levelup-choice-name {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: var(--amber);
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .levelup-choice-desc {
+    font-size: 16px;
+    color: #888;
+  }
+
+  /* GAME OVER / WIN */
+  #endgame-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.97);
+    z-index: 5000;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+  }
+
+  #endgame-overlay.active { display: flex; }
+
+  .endgame-art {
+    font-family: 'VT323', monospace;
+    font-size: 13px;
+    line-height: 1.2;
+    white-space: pre;
+    text-align: center;
+  }
+
+  /* SHOP */
+  #shop-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.94);
+    z-index: 1000;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  #shop-overlay.active { display: flex; }
+
+  .shop-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    max-width: 620px;
+  }
+
+  .shop-item {
+    border: 1px solid #333;
+    padding: 14px;
+    background: #050505;
+    cursor: pointer;
+    transition: all 0.1s;
+    font-family: 'VT323', monospace;
+    text-align: center;
+  }
+
+  .shop-item:hover { border-color: var(--amber); background: #1a1400; }
+  .shop-item:disabled, .shop-item.cant-afford { opacity: 0.4; cursor: not-allowed; }
+  .shop-item .item-icon { font-size: 28px; display: block; margin-bottom: 6px; }
+  .shop-item .item-name { font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--amber); display: block; margin-bottom: 4px; }
+  .shop-item .item-desc { font-size: 15px; color: #666; display: block; margin-bottom: 6px; }
+  .shop-item .item-price { color: var(--amber); font-size: 18px; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #000; }
+  ::-webkit-scrollbar-thumb { background: #1a3a1a; }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+
+  .shake { animation: shake 0.4s ease; }
+
+  .typing-cursor::after {
+    content: '█';
+    animation: pulse 0.8s infinite;
+    color: var(--green);
+  }
+
+  /* Mini map visual */
+  .map-cell { display: inline; }
+
+  /* TOOLTIP */
+  .tooltip {
+    position: absolute;
+    background: #0a1a0a;
+    border: 1px solid var(--green);
+    padding: 6px 10px;
+    font-family: 'VT323', monospace;
+    font-size: 15px;
+    color: #aaa;
+    pointer-events: none;
+    z-index: 500;
+    max-width: 160px;
+    bottom: 105%;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    white-space: nowrap;
+  }
+
+  .inv-slot:hover .tooltip { display: block; }
+
+  /* TITLE MENU */
+  .menu-item {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 13px;
+    padding: 12px 30px;
+    border: 2px solid var(--green);
+    background: transparent;
+    color: var(--green);
+    cursor: pointer;
+    transition: all 0.1s;
+    text-shadow: var(--glow);
+    letter-spacing: 2px;
+    width: 260px;
+    text-align: center;
+  }
+
+  .menu-item:hover {
+    background: var(--green);
+    color: #000;
+    box-shadow: var(--glow);
+  }
+
+  /* Character select */
+  .class-grid {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 700px;
+  }
+
+  .class-card {
+    border: 2px solid #333;
+    padding: 16px 20px;
+    background: #050505;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+    width: 180px;
+    font-family: 'VT323', monospace;
+  }
+
+  .class-card:hover {
+    border-color: var(--green);
+    box-shadow: var(--glow);
+    background: #0a1a0a;
+  }
+
+  .class-sprite {
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: pre;
+    margin-bottom: 10px;
+    color: var(--green);
+    text-shadow: var(--glow);
+  }
+
+  .class-name {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: var(--amber);
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .class-desc { font-size: 16px; color: #666; }
+
+  #char-name-input {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid var(--green);
+    color: var(--green);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 16px;
+    text-align: center;
+    outline: none;
+    width: 280px;
+    padding: 6px;
+    text-shadow: var(--glow);
+  }
+
+  .select-label {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    color: #444;
+    letter-spacing: 3px;
+    margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+<div id="game">
+
+<!-- TITLE SCREEN -->
+<div id="title-screen">
+  <div class="ascii-title">
+ ██████╗██╗  ██╗██████╗  ██████╗ ███╗   ██╗██╗ ██████╗██╗     ███████╗███████╗
+██╔════╝██║  ██║██╔══██╗██╔═══██╗████╗  ██║██║██╔════╝██║     ██╔════╝██╔════╝
+██║     ███████║██████╔╝██║   ██║██╔██╗ ██║██║██║     ██║     █████╗  ███████╗
+██║     ██╔══██║██╔══██╗██║   ██║██║╚██╗██║██║██║     ██║     ██╔══╝  ╚════██║
+╚██████╗██║  ██║██║  ██║╚██████╔╝██║ ╚████║██║╚██████╗███████╗███████╗███████║
+ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝ ╚═════╝╚══════╝╚══════╝╚══════╝</div>
+  <div class="ascii-title" style="font-size:clamp(8px,2.5vw,28px); color:#006600; margin-top:-8px">
+        ██████╗ ███████╗    ████████╗██╗  ██╗███████╗    ██╗   ██╗ ██████╗ ██╗██████╗ 
+        ██╔══██╗██╔════╝       ██╔══╝██║  ██║██╔════╝    ██║   ██║██╔═══██╗██║██╔══██╗
+        ██║  ██║█████╗         ██║   ███████║█████╗      ██║   ██║██║   ██║██║██║  ██║
+        ██║  ██║██╔══╝         ██║   ██╔══██║██╔══╝      ╚██╗ ██╔╝██║   ██║██║██║  ██║
+        ██████╔╝██║            ██║   ██║  ██║███████╗     ╚████╔╝ ╚██████╔╝██║██████╔╝
+        ╚═════╝ ╚═╝            ╚═╝   ╚═╝  ╚═╝╚══════╝      ╚═══╝   ╚═════╝ ╚═╝╚═════╝ </div>
+  <div class="subtitle">◆ PRESS START ◆</div>
+  <button class="menu-item" onclick="showCharCreate()">▶ NEW GAME</button>
+  <div class="version">VER 1.0 — CHRONICLES ENGINE © 2087</div>
+  <div style="font-family:'VT323';font-size:15px;color:#222;margin-top:8px;">
+    "The void does not sleep. It waits."
+  </div>
+</div>
+
+<!-- CHAR CREATE -->
+<div id="char-create" style="display:none; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:18px;">
+  <div style="font-family:'Press Start 2P';font-size:14px;color:var(--amber);text-shadow:var(--amber-glow);letter-spacing:4px;">CHARACTER CREATION</div>
+  
+  <div class="select-label">ENTER YOUR NAME</div>
+  <input id="char-name-input" type="text" maxlength="12" placeholder="HERO" value="HERO">
+  
+  <div class="select-label" style="margin-top:8px;">CHOOSE YOUR CLASS</div>
+  <div class="class-grid">
+    <div class="class-card" onclick="selectClass('warrior')">
+      <div class="class-sprite"> ┌─┐
+ │█│
+▄▄█▄▄
+ ███
+ █ █</div>
+      <span class="class-name">WARRIOR</span>
+      <div class="class-desc">High HP & STR<br>Sword mastery<br>Tank abilities</div>
+    </div>
+    <div class="class-card" onclick="selectClass('rogue')">
+      <div class="class-sprite" style="color:#cc88ff;text-shadow:0 0 8px #cc88ff"> ╔═╗
+ ║▓║
+╔╬═╬╗
+ ║║
+╔╩╩╗</div>
+      <span class="class-name" style="color:#cc88ff;">ROGUE</span>
+      <div class="class-desc">High SPD & AGI<br>Poison & stealth<br>Critical hits</div>
+    </div>
+    <div class="class-card" onclick="selectClass('mage')">
+      <div class="class-sprite" style="color:var(--blue);text-shadow:var(--blue-glow)"> /▲\
+ │░│
+╔╪═╪╗
+  ║
+ / \</div>
+      <span class="class-name" style="color:var(--blue);">MAGE</span>
+      <div class="class-desc">High MP & INT<br>Elemental spells<br>Area damage</div>
+    </div>
+    <div class="class-card" onclick="selectClass('ranger')">
+      <div class="class-sprite" style="color:#88ff88"> ◉─◉
+ │▒│
+─═█═─
+ ║ ║
+═╝ ╚═</div>
+      <span class="class-name" style="color:#88ff88">RANGER</span>
+      <div class="class-desc">High AGI & DEX<br>Bow & traps<br>Dual attacks</div>
+    </div>
+  </div>
+  
+  <div id="class-selected" style="font-family:'VT323';font-size:20px;color:#333;">No class selected</div>
+  
+  <button class="menu-item" id="start-btn" style="opacity:0.4;cursor:not-allowed" onclick="startGame()">▶ BEGIN JOURNEY</button>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div id="main-layout">
+  <!-- TOP BAR -->
+  <div id="top-bar">
+    <div class="stat-block">
+      <span class="stat-label">HEALTH</span>
+      <div class="stat-bar-wrap">
+        <div class="stat-bar"><div class="stat-fill hp-fill" id="hp-bar" style="width:100%"></div></div>
+        <span class="stat-num hp-num" id="hp-text">100/100</span>
+      </div>
+    </div>
+    <div class="stat-block">
+      <span class="stat-label">MANA</span>
+      <div class="stat-bar-wrap">
+        <div class="stat-bar"><div class="stat-fill mp-fill" id="mp-bar" style="width:100%"></div></div>
+        <span class="stat-num mp-num" id="mp-text">50/50</span>
+      </div>
+    </div>
+    <div class="stat-block">
+      <span class="stat-label">EXPERIENCE</span>
+      <div class="stat-bar-wrap">
+        <div class="stat-bar"><div class="stat-fill xp-fill" id="xp-bar" style="width:0%"></div></div>
+        <span class="stat-num xp-num" id="xp-text">0/100</span>
+      </div>
+    </div>
+    <div class="top-info">
+      <div class="info-chip">LV <span id="level-disp">1</span></div>
+      <div class="info-chip gold-chip">⬡ <span id="gold-disp">50</span></div>
+      <div class="info-chip">🗺️ <span id="location-disp">???</span></div>
+      <div class="info-chip" id="status-disp" style="display:none;color:var(--purple)">⚡ <span id="status-name">OK</span></div>
+    </div>
+  </div>
+
+  <div id="content-area">
+    <!-- LEFT: SCENE MAP -->
+    <div id="scene-panel">
+      <div class="panel-header">◈ WORLD MAP</div>
+      <div id="map-canvas"></div>
+    </div>
+
+    <!-- MIDDLE: STORY -->
+    <div id="story-panel">
+      <div id="story-text"></div>
+      <div id="choices-area"></div>
+    </div>
+
+    <!-- RIGHT: CHARACTER -->
+    <div id="char-panel">
+      <div class="panel-header">◈ WARRIOR</div>
+      <div class="char-sprite" id="player-sprite">
+   ╔═╗
+   ║█║
+  ╔╬═╬╗
+  ╚╬═╬╝
+   ║ ║
+  ═╝ ╚═</div>
+      <div class="char-stats" id="char-stats-display"></div>
+      <div class="panel-header" style="border-top:1px solid var(--border)">◈ INVENTORY</div>
+      <div class="inventory-grid" id="inv-grid"></div>
+      <div class="abilities-list" id="abilities-display">
+        <div class="panel-header" style="margin:-8px -12px 6px;padding:6px 12px">◈ ABILITIES</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COMBAT OVERLAY -->
+<div id="combat-overlay">
+  <div class="combat-title" id="combat-title">⚔ BATTLE ⚔</div>
+  <div class="combat-arena">
+    <div class="combatant player-side">
+      <div class="combatant-sprite" id="combat-player-sprite"></div>
+      <div class="combatant-name" id="combat-player-name">HERO</div>
+      <div class="combat-hp-bar"><div class="combat-hp-fill" id="combat-player-hp" style="width:100%"></div></div>
+      <div class="combat-hp-text" id="combat-player-hp-text">100/100</div>
+      <div class="status-icons" id="player-status-icons"></div>
+    </div>
+    <div class="vs-symbol">VS</div>
+    <div class="combatant enemy-side">
+      <div class="combatant-sprite" id="combat-enemy-sprite"></div>
+      <div class="combatant-name" id="combat-enemy-name">ENEMY</div>
+      <div class="combat-hp-bar"><div class="combat-hp-fill" id="combat-enemy-hp" style="width:100%"></div></div>
+      <div class="combat-hp-text" id="combat-enemy-hp-text">50/50</div>
+      <div class="status-icons" id="enemy-status-icons"></div>
+    </div>
+  </div>
+  <div id="combat-log"></div>
+  <div id="combat-actions"></div>
+</div>
+
+<!-- SHOP OVERLAY -->
+<div id="shop-overlay">
+  <div style="font-family:'Press Start 2P';font-size:14px;color:var(--amber);text-shadow:var(--amber-glow)">⬡ MERCHANT'S DEN ⬡</div>
+  <div style="font-family:'VT323';font-size:20px;color:#555" id="shop-gold-disp">Your gold: 50</div>
+  <div class="shop-grid" id="shop-items"></div>
+  <button class="combat-btn" onclick="closeShop()" style="margin-top:6px">LEAVE SHOP</button>
+</div>
+
+<!-- LEVEL UP OVERLAY -->
+<div id="levelup-overlay">
+  <div class="levelup-title">⭐ LEVEL UP! ⭐</div>
+  <div style="font-family:'VT323';font-size:22px;color:var(--green)">Choose a stat to upgrade:</div>
+  <div class="levelup-stat-grid" id="levelup-choices"></div>
+</div>
+
+<!-- ENDGAME OVERLAY -->
+<div id="endgame-overlay">
+  <div class="endgame-art" id="endgame-art"></div>
+  <div style="font-family:'Press Start 2P';font-size:16px" id="endgame-title"></div>
+  <div style="font-family:'VT323';font-size:22px;color:#888;max-width:500px;text-align:center" id="endgame-msg"></div>
+  <div style="font-family:'VT323';font-size:20px;color:var(--amber)" id="endgame-stats"></div>
+  <button class="menu-item" onclick="location.reload()" style="margin-top:10px">▶ PLAY AGAIN</button>
+</div>
+
+<!-- NOTIFICATION -->
+<div id="notif"></div>
+
+</div>
+<script>
+// ===========================
+// GAME STATE
+// ===========================
+const G = {
+  playerName: 'HERO',
+  class: 'warrior',
+  level: 1,
+  hp: 100, maxHp: 100,
+  mp: 50, maxMp: 50,
+  xp: 0, xpNeeded: 100,
+  gold: 50,
+  atk: 12, def: 6, spd: 8, int: 4, crit: 10,
+  location: 'THE VOID GATE',
+  flags: {},   // story flags
+  inventory: [],
+  equipped: { weapon: null, armor: null, accessory: null },
+  abilities: [],
+  kills: 0,
+  turn: 0,
+  statusEffects: [],   // {name, icon, turns, effect}
+  chapter: 1,
+  path: null,          // 'order', 'chaos', or 'void'
+  companions: [],
+  choices: [],
+};
+
+// ===========================
+// SPRITES
+// ===========================
+const SPRITES = {
+  warrior: `   ╔═╗
+   ║█║
+  ╔╬═╬╗
+  ╚╬═╬╝
+   ║ ║
+  ═╝ ╚═`,
+  rogue: `   ╔═╗
+   ║▓║
+  ╔╬═╬╗
+  ╚╬═╬╝
+   ║ ║
+  ═╝ ╚═`,
+  mage: `   /▲\\
+   │░│
+  ╔╪═╪╗
+   │ │
+  / \\ /\\`,
+  ranger: `   ◉─◉
+   │▒│
+  ─═█═─
+   ║ ║
+  ═╝ ╚═`,
+  goblin: `   ◖◗
+  /███\\
+  \\█▄█/
+   ║║`,
+  wolf: `  ▄███▄
+ █▓▓▓▓█
+  ▀▄▄▀
+ ▓▓ ▓▓`,
+  skeleton: `   ☠
+  /│\\
+   │
+  / \\`,
+  bandit: `   ◎
+  /▓│
+  / \\`,
+  darkKnight: `  ╔▓╗
+  ╠█╣
+ ╔╬█╬╗
+  ║█║
+ ═╝ ╚═`,
+  necromancer: `  ╔◎╗
+  ║░║
+ ╔╩═╩╗
+   │
+  ╱ ╲`,
+  voidBeast: ` ◄███►
+█▓▓▓▓▓█
+ ▄███▄
+  ▓▓▓`,
+  dragonLord: ` /\\___/\\
+/░░█▓█░░\\
+\\___▄___/
+  ▓▓▓▓▓`,
+  merchant: `  (^_^)
+  ╔═╗
+  ║$║
+  ╚═╝
+  ╱ ╲`,
+  oracle: `  ◉ ◉
+ (░░░)
+  ╔═╗
+  ║☆║
+ ╱   ╲`,
+};
+
+// ===========================
+// ITEMS DATABASE
+// ===========================
+const ITEMS = {
+  health_potion: { name: 'HP Potion', icon: '🧪', desc: '+40 HP', type: 'consumable', effect: (g) => { heal(40); logCombat('You drink a health potion. +40 HP', 'heal'); } },
+  mana_potion: { name: 'MP Potion', icon: '💧', desc: '+30 MP', type: 'consumable', effect: (g) => { G.mp = Math.min(G.maxMp, G.mp + 30); updateBars(); logCombat('You drink a mana potion. +30 MP', 'status'); } },
+  antidote: { name: 'Antidote', icon: '💊', desc: 'Cure poison', type: 'consumable', effect: () => { removeStatus('POISON'); removeStatus('VENOM'); logCombat('Poison cured!', 'heal'); } },
+  iron_sword: { name: 'Iron Sword', icon: '⚔️', desc: '+8 ATK', type: 'weapon', stats: { atk: 8 } },
+  silver_sword: { name: 'Silver Sword', icon: '🗡️', desc: '+15 ATK, +5 CRIT', type: 'weapon', stats: { atk: 15, crit: 5 } },
+  void_blade: { name: 'Void Blade', icon: '🔮', desc: '+25 ATK, +10 INT', type: 'weapon', stats: { atk: 25, int: 10 } },
+  leather_armor: { name: 'Leather Armor', icon: '🛡️', desc: '+6 DEF', type: 'armor', stats: { def: 6 } },
+  chain_mail: { name: 'Chain Mail', icon: '🧥', desc: '+14 DEF, +20 HP', type: 'armor', stats: { def: 14, maxHp: 20 } },
+  void_armor: { name: 'Void Armor', icon: '🌑', desc: '+20 DEF, +40 HP', type: 'armor', stats: { def: 20, maxHp: 40 } },
+  ring_speed: { name: 'Ring of Speed', icon: '💍', desc: '+12 SPD', type: 'accessory', stats: { spd: 12 } },
+  amulet_power: { name: 'Amulet of Power', icon: '📿', desc: '+10 ATK +10 INT', type: 'accessory', stats: { atk: 10, int: 10 } },
+  tome_fire: { name: 'Fire Tome', icon: '📖', desc: 'Learn Fireball', type: 'consumable', effect: () => { if (!G.abilities.includes('FIREBALL')) { G.abilities.push('FIREBALL'); notify('✨ Learned FIREBALL!'); } } },
+  shadow_cloak: { name: 'Shadow Cloak', icon: '🌑', desc: 'Stealth ability', type: 'consumable', effect: () => { if (!G.abilities.includes('SHADOW STEP')) { G.abilities.push('SHADOW STEP'); notify('✨ Learned SHADOW STEP!'); } } },
+  void_crystal: { name: 'Void Crystal', icon: '💎', desc: 'Key item - opens Void Gate', type: 'key' },
+  ancient_scroll: { name: 'Ancient Scroll', icon: '📜', desc: 'Contains prophecy', type: 'key' },
+  soul_gem: { name: 'Soul Gem', icon: '🔮', desc: 'Stores enemy essence', type: 'key' },
+};
+
+const SHOP_STOCK = {
+  village: ['health_potion', 'mana_potion', 'antidote', 'iron_sword', 'leather_armor'],
+  citadel: ['health_potion', 'mana_potion', 'silver_sword', 'chain_mail', 'ring_speed', 'tome_fire'],
+  void_market: ['health_potion', 'mana_potion', 'void_blade', 'void_armor', 'amulet_power'],
+};
+
+const SHOP_PRICES = {
+  health_potion: 25, mana_potion: 20, antidote: 15,
+  iron_sword: 60, silver_sword: 130, void_blade: 320,
+  leather_armor: 55, chain_mail: 120, void_armor: 300,
+  ring_speed: 90, amulet_power: 180, tome_fire: 100, shadow_cloak: 80,
+};
+
+// ===========================
+// ENEMY DATABASE
+// ===========================
+const ENEMIES = {
+  goblin: { name: 'GOBLIN SCOUT', sprite: 'goblin', hp: 30, maxHp: 30, atk: 7, def: 2, spd: 9, xp: 20, gold: 10, abilities: [] },
+  wolf: { name: 'SHADOW WOLF', sprite: 'wolf', hp: 45, maxHp: 45, atk: 11, def: 3, spd: 12, xp: 30, gold: 8, abilities: ['HOWL'] },
+  skeleton: { name: 'BONE KNIGHT', sprite: 'skeleton', hp: 55, maxHp: 55, atk: 13, def: 5, spd: 7, xp: 40, gold: 15, abilities: ['BONE_THROW'] },
+  bandit: { name: 'VOID BANDIT', sprite: 'bandit', hp: 65, maxHp: 65, atk: 15, def: 6, spd: 10, xp: 50, gold: 30, abilities: ['POISON_BLADE'] },
+  darkKnight: { name: 'DARK KNIGHT', sprite: 'darkKnight', hp: 120, maxHp: 120, atk: 22, def: 12, spd: 8, xp: 120, gold: 60, abilities: ['DARK_SLASH', 'INTIMIDATE'], isBoss: true },
+  necromancer: { name: 'NECROMANCER', sprite: 'necromancer', hp: 90, maxHp: 90, atk: 18, def: 5, spd: 6, xp: 100, gold: 70, abilities: ['DRAIN_SOUL', 'RAISE_DEAD'], isBoss: true },
+  voidBeast: { name: 'VOID BEAST', sprite: 'voidBeast', hp: 160, maxHp: 160, atk: 28, def: 14, spd: 11, xp: 200, gold: 100, abilities: ['VOID_STRIKE', 'REGENERATE'], isBoss: true },
+  dragonLord: { name: 'DRAGON LORD', sprite: 'dragonLord', hp: 280, maxHp: 280, atk: 40, def: 20, spd: 14, xp: 500, gold: 300, abilities: ['FIRE_BREATH', 'TAIL_SWEEP', 'VOID_ROAR'], isBoss: true, finalBoss: true },
+};
+
+// ===========================
+// ABILITIES
+// ===========================
+const ABILITIES = {
+  // Warrior
+  SHIELD_BASH: { name: 'SHIELD BASH', mpCost: 8, desc: 'Stun enemy (2 turns)', fn: (enemy) => {
+    const dmg = Math.floor(G.atk * 0.8);
+    dealDamage(enemy, dmg);
+    addStatus(enemy, 'STUN', '😵', 2, null);
+    logCombat(`Shield Bash! ${dmg} dmg + STUN`, 'player_atk');
+  }},
+  BATTLE_CRY: { name: 'BATTLE CRY', mpCost: 12, desc: '+8 ATK for 3 turns', fn: (enemy) => {
+    addPlayerStatus('POWER', '💪', 3, () => G.atk += 8);
+    G.atk += 8;
+    logCombat('Battle Cry! ATK +8 for 3 turns!', 'status');
+  }},
+  CLEAVE: { name: 'CLEAVE', mpCost: 15, desc: '2x ATK + Bleed', fn: (enemy) => {
+    const dmg = Math.floor(G.atk * 2.2);
+    dealDamage(enemy, dmg);
+    addStatus(enemy, 'BLEED', '🩸', 3, (e) => { e.hp -= 5; });
+    logCombat(`CLEAVE! ${dmg} damage + BLEED!`, 'crit');
+  }},
+  // Rogue
+  BACKSTAB: { name: 'BACKSTAB', mpCost: 10, desc: '3x ATK if enemy stunned', fn: (enemy) => {
+    const stun = enemy.statusEffects && enemy.statusEffects.find(s => s.name === 'STUN');
+    const mult = stun ? 3 : 1.8;
+    const dmg = Math.floor(G.atk * mult);
+    dealDamage(enemy, dmg);
+    logCombat(`Backstab! ${dmg} damage${stun ? ' (STUN BONUS!)' : ''}`, 'crit');
+  }},
+  POISON_STRIKE: { name: 'POISON STRIKE', mpCost: 8, desc: 'ATK + Poison', fn: (enemy) => {
+    const dmg = Math.floor(G.atk * 1.2);
+    dealDamage(enemy, dmg);
+    addStatus(enemy, 'POISON', '☠️', 4, (e) => { e.hp -= 8; });
+    logCombat(`Poison Strike! ${dmg} dmg + POISON`, 'player_atk');
+  }},
+  SHADOW_STEP: { name: 'SHADOW STEP', mpCost: 14, desc: 'Dodge next attack', fn: (enemy) => {
+    addPlayerStatus('DODGE', '👁️', 1, null, true);
+    logCombat('Shadow Step! Will dodge next attack!', 'status');
+  }},
+  // Mage
+  FIREBALL: { name: 'FIREBALL', mpCost: 18, desc: '3x INT dmg + Burn', fn: (enemy) => {
+    const dmg = Math.floor(G.int * 3.5);
+    dealDamage(enemy, dmg);
+    addStatus(enemy, 'BURN', '🔥', 3, (e) => { e.hp -= 6; });
+    logCombat(`FIREBALL! ${dmg} fire damage + BURN`, 'crit');
+  }},
+  FROST_NOVA: { name: 'FROST NOVA', mpCost: 20, desc: 'INT dmg + Freeze 2t', fn: (enemy) => {
+    const dmg = Math.floor(G.int * 2.5);
+    dealDamage(enemy, dmg);
+    addStatus(enemy, 'FREEZE', '❄️', 2, null, true);
+    logCombat(`Frost Nova! ${dmg} ice dmg + FREEZE`, 'status');
+  }},
+  DRAIN_LIFE: { name: 'DRAIN LIFE', mpCost: 22, desc: '2x INT dmg, steal HP', fn: (enemy) => {
+    const dmg = Math.floor(G.int * 2.2);
+    dealDamage(enemy, dmg);
+    heal(Math.floor(dmg * 0.5));
+    logCombat(`Drain Life! ${dmg} dmg, stole ${Math.floor(dmg*0.5)} HP!`, 'heal');
+  }},
+  // Ranger
+  DOUBLE_SHOT: { name: 'DOUBLE SHOT', mpCost: 10, desc: '2 attacks', fn: (enemy) => {
+    const d1 = calcDamage(); const d2 = calcDamage();
+    dealDamage(enemy, d1); dealDamage(enemy, d2);
+    logCombat(`Double Shot! ${d1} + ${d2} = ${d1+d2} damage!`, 'crit');
+  }},
+  TRAP_SET: { name: 'SET TRAP', mpCost: 12, desc: 'Enemy misses + takes dmg', fn: (enemy) => {
+    addStatus(enemy, 'TRAPPED', '🪤', 2, (e) => { e.hp -= 10; dealDamage(e, 0); }, true);
+    logCombat('Trap set! Enemy will be snared!', 'status');
+  }},
+};
+
+// Class starting loadouts
+const CLASS_DATA = {
+  warrior: {
+    stats: { hp: 120, maxHp: 120, mp: 30, maxMp: 30, atk: 15, def: 10, spd: 7, int: 3, crit: 8 },
+    abilities: ['SHIELD_BASH', 'BATTLE_CRY'],
+    items: ['iron_sword', 'health_potion', 'health_potion'],
+    sprite: SPRITES.warrior,
+    color: 'var(--green)',
+  },
+  rogue: {
+    stats: { hp: 85, maxHp: 85, mp: 45, maxMp: 45, atk: 13, def: 5, spd: 16, int: 6, crit: 20 },
+    abilities: ['BACKSTAB', 'POISON_STRIKE'],
+    items: ['health_potion', 'antidote', 'mana_potion'],
+    sprite: SPRITES.rogue,
+    color: '#cc88ff',
+  },
+  mage: {
+    stats: { hp: 70, maxHp: 70, mp: 80, maxMp: 80, atk: 6, def: 4, spd: 8, int: 20, crit: 10 },
+    abilities: ['FIREBALL', 'DRAIN_LIFE'],
+    items: ['mana_potion', 'mana_potion', 'health_potion'],
+    sprite: SPRITES.mage,
+    color: 'var(--blue)',
+  },
+  ranger: {
+    stats: { hp: 95, maxHp: 95, mp: 50, maxMp: 50, atk: 14, def: 6, spd: 14, int: 8, crit: 15 },
+    abilities: ['DOUBLE_SHOT', 'TRAP_SET'],
+    items: ['health_potion', 'mana_potion', 'antidote'],
+    sprite: SPRITES.ranger,
+    color: '#88ff88',
+  },
+};
+
+// ===========================
+// STORY ENGINE
+// ===========================
+let selectedClass = null;
+let combatCallback = null;
+let currentEnemy = null;
+let combatTurn = 0;
+let playerDodge = false;
+let currentShop = 'village';
+let typewriterQueue = [];
+let isTyping = false;
+
+function selectClass(cls) {
+  selectedClass = cls;
+  document.querySelectorAll('.class-card').forEach(c => c.style.borderColor = '#333');
+  event.currentTarget.style.borderColor = 'var(--amber)';
+  document.getElementById('class-selected').textContent = `▶ ${cls.toUpperCase()} SELECTED ◀`;
+  document.getElementById('class-selected').style.color = 'var(--amber)';
+  const btn = document.getElementById('start-btn');
+  btn.style.opacity = '1';
+  btn.style.cursor = 'pointer';
+}
+
+function startGame() {
+  if (!selectedClass) return;
+  const name = document.getElementById('char-name-input').value.trim() || 'HERO';
+  G.playerName = name.toUpperCase().substring(0, 12);
+  G.class = selectedClass;
+  const cd = CLASS_DATA[selectedClass];
+  Object.assign(G, cd.stats);
+  G.abilities = [...cd.abilities];
+  G.inventory = cd.items.map(id => ({ id, ...ITEMS[id] }));
+
+  document.getElementById('char-create').style.display = 'none';
+  document.getElementById('main-layout').style.display = 'flex';
+  document.querySelector('#char-panel .panel-header').textContent = `◈ ${G.playerName}`;
+  document.getElementById('player-sprite').textContent = cd.sprite;
+  document.getElementById('player-sprite').style.color = cd.color;
+
+  updateBars();
+  renderInventory();
+  renderAbilities();
+  renderCharStats();
+  
+  // Start story
+  goToScene('intro');
+}
+
+// ===========================
+// SCENE SYSTEM
+// ===========================
+function goToScene(sceneId) {
+  const scene = SCENES[sceneId];
+  if (!scene) return;
+  clearStory();
+  G.location = scene.location || G.location;
+  document.getElementById('location-disp').textContent = G.location;
+  updateMap(scene.map || 'default');
+
+  if (typeof scene.text === 'function') {
+    scene.text();
+  } else {
+    addStoryLines(scene.text);
+  }
+
+  setTimeout(() => {
+    if (scene.choices) {
+      const chs = typeof scene.choices === 'function' ? scene.choices() : scene.choices;
+      showChoices(chs);
+    }
+  }, 100);
+}
+
+const SCENES = {
+  // ==================== CHAPTER 1 ====================
+  intro: {
+    location: 'THE VOID GATE',
+    map: 'void_gate',
+    text: () => {
+      addStory('THE VOID GATE', 'location');
+      addStory('You awaken on cold stone, the taste of ash on your lips.', '');
+      addStory('Around you, the ancient Void Gate hums with ominous energy.', '');
+      addStory('Strange runes pulse on its surface — green, then black, then gone.', '');
+      addStory('A dying soldier reaches for you with a gauntleted hand.', 'event');
+      addStory('"The Gate... it opened. THEY are coming through..."', 'npc');
+      addStory('He presses a torn map into your hands and goes still.', 'event');
+      addStory('In the distance, you hear the clash of steel and screams.', 'danger');
+      addStory('The map shows two paths: the village of ASHFORD to the west,', '');
+      addStory('and the Citadel of Order to the north.', '');
+    },
+    choices: [
+      { text: 'Examine the Void Gate closely', action: () => goToScene('examine_gate') },
+      { text: 'Rush toward the sounds of battle', action: () => startCombat('goblin', () => goToScene('after_gate_battle'), 'A GOBLIN SCOUT charges at you!') },
+      { text: 'Take the soldier\'s weapon and head to Ashford', action: () => { addItem('iron_sword'); goToScene('ashford_arrive'); }},
+      { text: 'Head north toward the Citadel of Order', action: () => goToScene('citadel_road') },
+    ]
+  },
+
+  examine_gate: {
+    location: 'THE VOID GATE',
+    map: 'void_gate',
+    text: () => {
+      addStory('THE VOID GATE - CLOSE EXAMINATION', 'location');
+      addStory('You place your hand on the Gate\'s surface.', '');
+      addStory('A vision floods your mind:', 'event');
+      addStory('"There are THREE seals. THREE paths to end the Void\'s hunger."', 'npc');
+      addStory('"The Path of ORDER — serve the Citadel, protect the innocent."', 'npc');
+      addStory('"The Path of CHAOS — feed the Void, become its champion."', 'npc');  
+      addStory('"The Path of TRANSCENDENCE — destroy both Gate and self."', 'npc');
+      addStory('The vision shatters. Your palm bears a glowing void-mark.', 'event');
+      addStory('You gain a special VOID SENSE ability.', 'loot');
+      G.abilities.push('VOID_SENSE'); // Passive: see enemy HP
+      G.flags.sawVision = true;
+    },
+    choices: [
+      { text: 'Fight the approaching goblins', action: () => startCombat('goblin', () => goToScene('after_gate_battle'), 'Two GOBLINS burst through the Gate!') },
+      { text: 'Flee toward Ashford while you can', action: () => goToScene('ashford_arrive') },
+      { text: 'Head north to the Citadel', action: () => goToScene('citadel_road') },
+    ]
+  },
+
+  after_gate_battle: {
+    location: 'THE VOID GATE',
+    map: 'void_gate',
+    text: () => {
+      addStory('Victory. The goblin scouts fall.', '');
+      addStory('But more screams echo from beyond the Gate.', 'danger');
+      addStory('Whatever opened it won\'t stop sending monsters.', '');
+      addStory('You loot the bodies: 15 gold and a torn letter.', 'loot');
+      addStory('"...find the Oracle at Ashford. She knows the seals..."', 'event');
+      G.gold += 15; updateGold();
+      G.flags.heardAboutOracle = true;
+    },
+    choices: [
+      { text: 'Head to Ashford (find the Oracle)', action: () => goToScene('ashford_arrive'), cls: '' },
+      { text: 'Head to the Citadel of Order', action: () => goToScene('citadel_road') },
+    ]
+  },
+
+  // ==================== ASHFORD ====================
+  ashford_arrive: {
+    location: 'VILLAGE OF ASHFORD',
+    map: 'ashford',
+    text: () => {
+      addStory('VILLAGE OF ASHFORD', 'location');
+      addStory('The village smells of smoke and fear.', '');
+      addStory('Refugees from the east crowd the narrow streets.', '');
+      addStory('A WANTED poster shows a figure in dark armor — The Dread Marshal.', 'event');
+      addStory('A merchant waves at you from his stall. The local tavern', '');
+      addStory('has a crowd of armed villagers debating how to fight back.', '');
+      if (G.flags.heardAboutOracle) {
+        addStory('You remember: find the Oracle here.', 'event');
+      }
+    },
+    choices: () => {
+      const chs = [
+        { text: 'Visit the Oracle\'s tower', action: () => goToScene('oracle') },
+        { text: 'Talk to the villagers at the tavern', action: () => goToScene('tavern') },
+        { text: 'Browse the merchant\'s shop', action: () => openShop('village'), cls: 'shop-choice' },
+        { text: 'Head into the Ashford woods (patrol)', action: () => startCombat('wolf', () => goToScene('ashford_woods'), 'A SHADOW WOLF lunges from the trees!') },
+      ];
+      if (G.flags.hasSoulGem) chs.push({ text: 'Take the sealed road north (Citadel)', action: () => goToScene('citadel_road') });
+      return chs;
+    }
+  },
+
+  oracle: {
+    location: 'ORACLE\'S TOWER - ASHFORD',
+    map: 'ashford',
+    text: () => {
+      addStory('ORACLE\'S TOWER', 'location');
+      addStory('The old woman sits surrounded by floating runes.', '');
+      addStory('She turns before you enter. Her eyes are solid white.', 'event');
+      addStory('"I have waited for the one marked by the Void.', 'npc');
+      addStory(' Three seals lock the Gate. To close it, you must choose:', 'npc');
+      addStory(' Give the power to the ORDER of the Citadel,', 'npc');
+      addStory(' Release it into CHAOS and ascend as Void-Champion,', 'npc');
+      addStory(' Or shatter all three seals yourself — and perish."', 'npc');
+      addStory('She hands you an ANCIENT SCROLL. \'Read it when the time comes.\'', 'event');
+      addItem('ancient_scroll');
+      G.flags.metOracle = true;
+    },
+    choices: [
+      { text: 'Ask about the Path of ORDER', action: () => goToScene('oracle_order') },
+      { text: 'Ask about the Path of CHAOS', action: () => goToScene('oracle_chaos') },
+      { text: 'Ask about TRANSCENDENCE', action: () => goToScene('oracle_void') },
+      { text: 'Leave and explore more', action: () => goToScene('ashford_arrive') },
+    ]
+  },
+
+  oracle_order: {
+    location: 'ORACLE\'S TOWER - ASHFORD',
+    map: 'ashford',
+    text: () => {
+      addStory('"The ORDER path is noble but costly."', 'npc');
+      addStory('"You must reach the Citadel, earn the trust of Commander VAEL,"', 'npc');
+      addStory('"defeat the Necromancer who holds the First Seal in the Crypts,"', 'npc');
+      addStory('"then face the Void Beast guarding the Second in the Wastes."', 'npc');
+      addStory('"The Third Seal lies beneath the Citadel itself."', 'npc');
+      addStory('"The Dragon Lord guards the final gate."', 'npc');
+      G.flags.knowsOrderPath = true;
+    },
+    choices: [
+      { text: 'Pledge to the Path of ORDER', action: () => { G.path = 'order'; G.flags.pledgedOrder = true; notify('⚡ PATH OF ORDER CHOSEN'); goToScene('ashford_arrive'); } },
+      { text: 'Ask about Chaos first', action: () => goToScene('oracle_chaos') },
+      { text: 'Leave for now', action: () => goToScene('ashford_arrive') },
+    ]
+  },
+
+  oracle_chaos: {
+    location: 'ORACLE\'S TOWER - ASHFORD',
+    map: 'ashford',
+    text: () => {
+      addStory('"The CHAOS path offers power beyond measure."', 'npc');
+      addStory('"Seek the Shadow Vault beneath Ashford. Drink from the Well of Void."', 'npc');
+      addStory('"You will be hunted. The Citadel will send the Dark Knight."', 'npc');
+      addStory('"But if you survive... the Void will crown you its champion."', 'npc');
+      addStory('"Defeat the Dragon Lord not to seal the Gate — but to rule through it."', 'npc');
+      addStory('The Oracle turns away. She disapproves.', 'event');
+      G.flags.knowsChaosPath = true;
+    },
+    choices: [
+      { text: 'Pledge to CHAOS — take the power', action: () => { G.path = 'chaos'; G.flags.pledgedChaos = true; notify('💀 PATH OF CHAOS CHOSEN'); goToScene('shadow_vault_entrance'); }, cls: 'danger-choice' },
+      { text: 'Ask about Transcendence', action: () => goToScene('oracle_void') },
+      { text: 'Leave for now', action: () => goToScene('ashford_arrive') },
+    ]
+  },
+
+  oracle_void: {
+    location: 'ORACLE\'S TOWER - ASHFORD',
+    map: 'ashford',
+    text: () => {
+      addStory('"TRANSCENDENCE... the forbidden path."', 'npc');
+      addStory('"You must collect THREE Void Crystals, one at each Seal location."', 'npc');
+      addStory('"Then return here. I will perform the Rite of Unmaking."', 'npc');
+      addStory('"The Gate closes. The Void retreats. But the mark on your hand..."', 'npc');
+      addStory('She trails off. The runes around her darken.', 'event');
+      addStory('"You will not survive the Rite. But the world will."', 'npc');
+      G.flags.knowsVoidPath = true;
+    },
+    choices: [
+      { text: 'Accept TRANSCENDENCE', action: () => { G.path = 'void'; G.flags.pledgedVoid = true; notify('✨ PATH OF TRANSCENDENCE CHOSEN'); goToScene('ashford_arrive'); }, cls: 'special-choice' },
+      { text: 'Think on it and leave', action: () => goToScene('ashford_arrive') },
+    ]
+  },
+
+  tavern: {
+    location: 'THE RUSTED AXE TAVERN',
+    map: 'ashford',
+    text: () => {
+      addStory('THE RUSTED AXE TAVERN', 'location');
+      addStory('Rough-looking fighters debate battle plans over ale.', '');
+      addStory('A gruff woman, CAPTAIN SERA, spots you and waves you over.', 'event');
+      addStory('"You look like you\'ve been to the Gate and back. Good."', 'npc');
+      addStory('"We\'re organizing a resistance. But we need someone capable."', 'npc');
+      addStory('"Clear the bandits from Thornwood Pass and we\'ll owe you."', 'npc');
+    },
+    choices: [
+      { text: 'Accept the Thornwood mission', action: () => { G.flags.thornwoodMission = true; startCombat('bandit', () => goToScene('thornwood_clear'), 'VOID BANDITS ambush you in the pass!'); } },
+      { text: 'Ask Sera about the Citadel', action: () => goToScene('sera_citadel_info') },
+      { text: 'Ask about the Shadow Vault', action: () => goToScene('sera_vault_info') },
+      { text: 'Buy a round (10 gold) to loosen tongues', action: () => {
+        if (G.gold >= 10) { G.gold -= 10; updateGold(); goToScene('tavern_rumors'); }
+        else { notify('Not enough gold!'); }
+      }, cls: 'shop-choice' },
+    ]
+  },
+
+  tavern_rumors: {
+    location: 'THE RUSTED AXE TAVERN',
+    map: 'ashford',
+    text: () => {
+      addStory('Tongues loosen after a round.', '');
+      addStory('"The Dread Marshal — they say he was HUMAN once,"', 'npc');
+      addStory('"a commander of the Citadel who made a pact with the Void."', 'npc');
+      addStory('"He\'s the one who opened the Gate. And he\'s coming BACK to fully open it."', 'npc');
+      addStory('"Whoever killed him once... the Void just brought him back stronger."', 'npc');
+      addStory('You file this away. The Dread Marshal is unkillable... unless you\'re prepared.', 'event');
+      G.flags.knowsMarshalSecret = true;
+    },
+    choices: [
+      { text: 'Head to Ashford village', action: () => goToScene('ashford_arrive') },
+      { text: 'Visit the Oracle', action: () => goToScene('oracle') },
+    ]
+  },
+
+  sera_citadel_info: {
+    location: 'THE RUSTED AXE TAVERN',
+    map: 'ashford',
+    text: () => {
+      addStory('"The Citadel\'s Commander VAEL is... complicated,"', 'npc');
+      addStory('"He\'ll test you before trusting you. Prove yourself in the Trial Arena."', 'npc');
+      addStory('"Win the Trial and he\'ll give you access to the Crypt below."', 'npc');
+      addStory('"That\'s where the First Seal is — and the Necromancer who corrupted it."', 'npc');
+    },
+    choices: [
+      { text: 'Ask about the Shadow Vault', action: () => goToScene('sera_vault_info') },
+      { text: 'Prepare and head to the Citadel', action: () => goToScene('citadel_road') },
+      { text: 'Stay in Ashford for now', action: () => goToScene('ashford_arrive') },
+    ]
+  },
+
+  sera_vault_info: {
+    location: 'THE RUSTED AXE TAVERN',
+    map: 'ashford',
+    text: () => {
+      addStory('Sera lowers her voice.', '');
+      addStory('"The Shadow Vault... that\'s dark business. Nobody goes in sane."', 'npc');
+      addStory('"It\'s under the old cemetery, east side of town."', 'npc');
+      addStory('"Folks who come back... they\'re CHANGED. More powerful but..."', 'npc');
+      addStory('"Their eyes go dark. Like they\'re seeing somewhere else."', 'npc');
+      addStory('She gives you a warning look and goes back to her ale.', 'event');
+      G.flags.knowsVaultLocation = true;
+    },
+    choices: [
+      { text: 'Head to the Shadow Vault', action: () => goToScene('shadow_vault_entrance'), cls: 'danger-choice' },
+      { text: 'Stay in Ashford', action: () => goToScene('ashford_arrive') },
+    ]
+  },
+
+  ashford_woods: {
+    location: 'ASHFORD WOODS',
+    map: 'woods',
+    text: () => {
+      addStory('ASHFORD EASTERN WOODS', 'location');
+      addStory('The wolf pack is gone. You search the area.', '');
+      addStory('In a hollow tree: an old SOUL GEM and 20 gold coins.', 'loot');
+      addStory('The gem pulses faintly. Something trapped inside?', 'event');
+      addItem('soul_gem'); G.gold += 20; updateGold();
+      G.flags.hasSoulGem = true;
+    },
+    choices: [
+      { text: 'Return to Ashford', action: () => goToScene('ashford_arrive') },
+      { text: 'Explore deeper (fight skeleton)', action: () => startCombat('skeleton', () => goToScene('woods_deep'), 'A BONE KNIGHT rises from the earth!') },
+    ]
+  },
+
+  woods_deep: {
+    location: 'ASHFORD WOODS - DEEP',
+    map: 'woods',
+    text: () => {
+      addStory('In the deep woods, you find a hidden shrine.', '');
+      addStory('An old ranger spirit appears before you.', 'event');
+      addStory('"Well fought, traveler. Take this tome."', 'npc');
+      addStory('You receive a SHADOW CLOAK item.', 'loot');
+      addItem('shadow_cloak');
+    },
+    choices: [
+      { text: 'Use the Shadow Cloak now', action: () => { const item = G.inventory.find(i => i.id === 'shadow_cloak'); if (item) { ITEMS.shadow_cloak.effect(); G.inventory.splice(G.inventory.indexOf(item), 1); renderInventory(); } goToScene('ashford_arrive'); } },
+      { text: 'Save it and return to Ashford', action: () => goToScene('ashford_arrive') },
+    ]
+  },
+
+  thornwood_clear: {
+    location: 'THORNWOOD PASS',
+    map: 'woods',
+    text: () => {
+      addStory('THORNWOOD PASS — CLEARED', 'location');
+      addStory('The bandits scatter. You return to Captain Sera.', '');
+      addStory('"Impressive. Here\'s your reward — and our loyalty."', 'npc');
+      addStory('You receive 60 gold and a CHAIN MAIL as thanks.', 'loot');
+      G.gold += 60; updateGold(); addItem('chain_mail');
+      G.flags.seraTrust = true;
+    },
+    choices: [
+      { text: 'Ask Sera to join you', action: () => goToScene('sera_joins') },
+      { text: 'Head to the Citadel', action: () => goToScene('citadel_road') },
+      { text: 'Return to Ashford', action: () => goToScene('ashford_arrive') },
+    ]
+  },
+
+  sera_joins: {
+    location: 'THE RUSTED AXE TAVERN',
+    map: 'ashford',
+    text: () => {
+      addStory('Sera thinks for a moment, then nods.', '');
+      addStory('"Alright. Someone has to make sure you don\'t get killed."', 'npc');
+      addStory('CAPTAIN SERA joins your party!', 'loot');
+      addStory('Her presence grants +5 DEF and morale bonuses.', 'event');
+      G.companions.push('SERA');
+      G.def += 5;
+    },
+    choices: [
+      { text: 'Head to the Citadel together', action: () => goToScene('citadel_road') },
+      { text: 'Visit the Oracle first', action: () => goToScene('oracle') },
+    ]
+  },
+
+  // ==================== SHADOW VAULT ====================
+  shadow_vault_entrance: {
+    location: 'SHADOW VAULT - ENTRANCE',
+    map: 'vault',
+    text: () => {
+      addStory('SHADOW VAULT — ENTRANCE', 'location');
+      addStory('The cemetery gates creak open.', '');
+      addStory('A cold that has nothing to do with temperature surrounds you.', '');
+      addStory('Stairs descend into absolute darkness.', '');
+      addStory('A whisper: "You seek the Void\'s gift. Prove your worth."', 'danger');
+    },
+    choices: [
+      { text: 'Descend into the Vault', action: () => startCombat('skeleton', () => goToScene('shadow_vault_inner'), 'UNDEAD GUARDS block the stairs!') },
+      { text: 'Leave — this is too dark', action: () => goToScene('ashford_arrive') },
+    ]
+  },
+
+  shadow_vault_inner: {
+    location: 'SHADOW VAULT - INNER CHAMBER',
+    map: 'vault',
+    text: () => {
+      addStory('SHADOW VAULT — INNER CHAMBER', 'location');
+      addStory('The Well of Void pulses with black light at the center.', 'event');
+      addStory('The Void whispers all your deepest desires and fears.', '');
+      addStory('Drinking will change you. The Oracle warned of this.', 'danger');
+      if (G.path === 'chaos') {
+        addStory('The Void recognizes you. It WANTS you to drink.', 'danger');
+      }
+    },
+    choices: [
+      { text: 'Drink from the Well of Void', action: () => goToScene('drink_void'), cls: 'danger-choice' },
+      { text: 'Take a Void Crystal instead', action: () => { addItem('void_crystal'); addStory('You take a Void Crystal without drinking.', 'loot'); G.flags.crystal1 = true; goToScene('ashford_arrive'); } },
+      { text: 'Flee the vault', action: () => goToScene('ashford_arrive') },
+    ]
+  },
+
+  drink_void: {
+    location: 'SHADOW VAULT - INNER CHAMBER',
+    map: 'vault',
+    text: () => {
+      addStory('DRINKING FROM THE WELL...', 'location');
+      addStory('The cold liquid burns like fire and ice simultaneously.', 'danger');
+      addStory('Your vision goes black. Then white. Then something else entirely.', '');
+      addStory('You feel the Void flowing through your veins.', 'event');
+      addStory('VOID BLESSING: +20 ATK, +10 INT, but -20 MAX HP', 'loot');
+      addStory('Your eyes have darkened. People will fear you now.', '');
+      G.atk += 20; G.int += 10; G.maxHp = Math.max(20, G.maxHp - 20);
+      G.hp = Math.min(G.hp, G.maxHp);
+      G.flags.voidBlessed = true;
+      G.abilities.push('VOID_SURGE');
+      updateBars(); renderCharStats();
+      addStory('You gain the VOID SURGE ability.', 'loot');
+    },
+    choices: [
+      { text: 'Embrace the Void power fully', action: () => { G.path = 'chaos'; goToScene('citadel_road'); } },
+      { text: 'Fight against the corruption', action: () => goToScene('fight_void_corruption') },
+    ]
+  },
+
+  fight_void_corruption: {
+    location: 'SHADOW VAULT',
+    map: 'vault',
+    text: () => {
+      addStory('You fight the Void\'s influence with every ounce of will.', '');
+      addStory('The power remains, but YOU remain in control.', 'event');
+      addStory('A rare achievement: VOID-TOUCHED but NOT corrupted.', 'loot');
+      addStory('You can still walk the Path of Transcendence.', 'event');
+      G.flags.voidTouched = true;
+      if (!G.path) G.path = 'void';
+    },
+    choices: [
+      { text: 'Head to the Citadel', action: () => goToScene('citadel_road') },
+      { text: 'Return to the Oracle', action: () => goToScene('oracle') },
+    ]
+  },
+
+  // ==================== CITADEL ====================
+  citadel_road: {
+    location: 'ROAD TO THE CITADEL',
+    map: 'road',
+    text: () => {
+      addStory('NORTHERN ROAD — CITADEL BOUND', 'location');
+      addStory('The road north is treacherous.', '');
+      addStory('Void-touched creatures patrol in packs.', 'danger');
+      if (G.companions.includes('SERA')) addStory('Sera rides beside you, hand on her sword hilt.', 'event');
+      addStory('Halfway there, you are ambushed.', 'event');
+    },
+    choices: [
+      { text: 'Fight through the ambush', action: () => startCombat('bandit', () => goToScene('citadel_gates'), 'DARK MARAUDERS attack!') },
+      { text: 'Try to negotiate', action: () => goToScene('citadel_road_nego') },
+      { text: 'Use stealth to pass (needs Rogue/Shadow Step)', action: () => {
+        if (G.class === 'rogue' || G.abilities.includes('SHADOW STEP')) {
+          goToScene('citadel_stealth');
+        } else {
+          addStory('You lack the stealth skill for this.', 'system');
+          showChoices([
+            { text: 'Fight through', action: () => startCombat('bandit', () => goToScene('citadel_gates'), 'No choice but to fight!') }
+          ]);
+        }
+      }, cls: 'special-choice' },
+    ]
+  },
+
+  citadel_road_nego: {
+    location: 'NORTHERN ROAD',
+    map: 'road',
+    text: () => {
+      addStory('You step forward with hands raised.', '');
+      addStory('"We want no trouble. Let us pass."', '');
+      addStory('The bandit leader laughs.', 'npc');
+      addStory('"Pay 40 gold and we\'ll think about it."', 'npc');
+    },
+    choices: [
+      { text: 'Pay 40 gold', action: () => {
+        if (G.gold >= 40) { G.gold -= 40; updateGold(); goToScene('citadel_gates'); }
+        else { notify('Not enough gold!'); startCombat('bandit', () => goToScene('citadel_gates'), 'They attack when you have no gold!'); }
+      }, cls: 'shop-choice' },
+      { text: 'Refuse and fight', action: () => startCombat('bandit', () => goToScene('citadel_gates'), 'You draw your weapon!') },
+    ]
+  },
+
+  citadel_stealth: {
+    location: 'NORTHERN ROAD',
+    map: 'road',
+    text: () => {
+      addStory('You slip past the marauders like smoke.', '');
+      addStory('They never even knew you were there.', '');
+      addStory('You arrive at the Citadel with full HP and 20 bonus XP.', 'loot');
+      gainXP(20);
+    },
+    choices: [
+      { text: 'Enter the Citadel gates', action: () => goToScene('citadel_gates') },
+    ]
+  },
+
+  citadel_gates: {
+    location: 'CITADEL OF ORDER',
+    map: 'citadel',
+    text: () => {
+      addStory('CITADEL OF ORDER', 'location');
+      addStory('The massive fortress rises from the mountain like a titan\'s fist.', '');
+      addStory('Guards eye you warily. A knight steps forward.', 'event');
+      addStory('"State your purpose, traveler. This is a military installation."', 'npc');
+      if (G.flags.voidBlessed) {
+        addStory('He sees your darkened eyes and draws his sword.', 'danger');
+        addStory('"VOID-TOUCHED! Seize them!"', 'danger');
+      }
+    },
+    choices: () => {
+      if (G.flags.voidBlessed) {
+        return [
+          { text: 'Fight your way in', action: () => startCombat('darkKnight', () => goToScene('citadel_hostile'), 'The DARK KNIGHT bars your path!'), cls: 'danger-choice' },
+          { text: 'Run! Back to Ashford', action: () => goToScene('ashford_arrive') },
+        ];
+      }
+      return [
+        { text: 'Claim to be an ally against the Void', action: () => goToScene('citadel_ally') },
+        { text: 'Demand to see Commander Vael', action: () => goToScene('citadel_vael') },
+        { text: 'Visit the citadel shop first', action: () => openShop('citadel'), cls: 'shop-choice' },
+      ];
+    }
+  },
+
+  citadel_ally: {
+    location: 'CITADEL OF ORDER',
+    map: 'citadel',
+    text: () => {
+      addStory('"An ally? We\'ll see about that."', 'npc');
+      addStory('The knight eyes you for a long moment, then sheaths his sword.', '');
+      addStory('"Commander Vael will decide your fate. Follow me."', 'npc');
+    },
+    choices: [
+      { text: 'Follow the knight to Vael', action: () => goToScene('citadel_vael') },
+    ]
+  },
+
+  citadel_vael: {
+    location: 'COMMANDER\'S HALL - CITADEL',
+    map: 'citadel',
+    text: () => {
+      addStory('COMMANDER\'S HALL', 'location');
+      addStory('Commander VAEL is a scarred warrior in his 50s.', '');
+      addStory('He regards you with the cold eyes of someone who has seen too much war.', '');
+      addStory('"I hear you\'ve been to the Void Gate. Survived. That\'s rare."', 'npc');
+      addStory('"If you want my trust, prove yourself. Enter the Trial Arena."', 'npc');
+      addStory('"Beat our champion GORAG, and you\'ll have access to the Crypts."', 'npc');
+      addStory('"The Necromancer down there must die. He holds the First Seal."', 'npc');
+    },
+    choices: [
+      { text: 'Accept the Trial', action: () => startCombat('darkKnight', () => goToScene('trial_victory'), '⚔ TRIAL ARENA — You face CHAMPION GORAG!') },
+      { text: 'Ask about the Second Seal', action: () => goToScene('vael_second_seal') },
+      { text: 'Browse the Citadel shop', action: () => openShop('citadel'), cls: 'shop-choice' },
+    ]
+  },
+
+  vael_second_seal: {
+    location: 'COMMANDER\'S HALL - CITADEL',
+    map: 'citadel',
+    text: () => {
+      addStory('"The Second Seal is in the Void Wastes beyond the eastern cliffs."', 'npc');
+      addStory('"A creature — the Void Beast — has been feeding on it for centuries."', 'npc');
+      addStory('"Kill the beast, the seal activates. But the Wastes will try to consume you."', 'npc');
+      addStory('"Earn my trust first. Then I\'ll give you the map to the Wastes."', 'npc');
+    },
+    choices: [
+      { text: 'Accept the Trial', action: () => startCombat('darkKnight', () => goToScene('trial_victory'), 'TRIAL ARENA — Face CHAMPION GORAG!') },
+    ]
+  },
+
+  trial_victory: {
+    location: 'CITADEL TRIAL ARENA',
+    map: 'citadel',
+    text: () => {
+      addStory('TRIAL VICTORY!', 'location');
+      addStory('The crowd roars. Even Vael looks impressed.', '');
+      addStory('"Well done. I haven\'t seen fighting like that since the old wars."', 'npc');
+      addStory('Vael hands you a SILVER SWORD and 80 gold.', 'loot');
+      addStory('He also gives you the MAP to the Void Wastes.', 'loot');
+      addItem('silver_sword'); G.gold += 80; updateGold();
+      G.flags.vaelTrust = true; G.flags.hasWastesMap = true;
+    },
+    choices: [
+      { text: 'Descend into the Crypts (First Seal)', action: () => goToScene('citadel_crypts') },
+      { text: 'Rest and restock first', action: () => openShop('citadel') },
+    ]
+  },
+
+  citadel_hostile: {
+    location: 'CITADEL OF ORDER',
+    map: 'citadel',
+    text: () => {
+      addStory('You\'ve fought into the Citadel by force.', 'danger');
+      addStory('Vael confronts you in the courtyard, sword drawn.', '');
+      addStory('"Void-spawn! You dare enter my fortress?!"', 'npc');
+      addStory('A tense standoff. Then the alarm bells ring — Void forces attack!', 'danger');
+      addStory('The common enemy forces an uneasy truce.', 'event');
+      addStory('"I\'ll deal with YOU after we survive this,"', 'npc');
+      addStory('Vael growls. "For now: fight."', 'npc');
+      G.flags.vaelHostile = true;
+    },
+    choices: [
+      { text: 'Fight alongside Vael against the Void forces', action: () => startCombat('voidBeast', () => goToScene('uneasy_alliance'), 'VOID SPAWN surge through the gates!') },
+    ]
+  },
+
+  uneasy_alliance: {
+    location: 'CITADEL OF ORDER',
+    map: 'citadel',
+    text: () => {
+      addStory('The Void forces retreat.', '');
+      addStory('Vael sheaths his sword and looks at you with grudging respect.', '');
+      addStory('"You fight... like someone who has tasted the Void and survived."', 'npc');
+      addStory('"I still don\'t trust you. But I trust what I saw in that battle."', 'npc');
+      addStory('"The Crypts are yours to enter. Find the Necromancer."', 'npc');
+      G.flags.vaelTrust = true;
+    },
+    choices: [
+      { text: 'Head into the Crypts', action: () => goToScene('citadel_crypts') },
+    ]
+  },
+
+  // ==================== CRYPTS ====================
+  citadel_crypts: {
+    location: 'CITADEL CRYPTS — LEVEL 1',
+    map: 'crypts',
+    text: () => {
+      addStory('CITADEL CRYPTS', 'location');
+      addStory('The air reeks of ancient death and Void corruption.', '');
+      addStory('Undead shamble between the old stone tombs.', 'danger');
+      addStory('In the deeper dark, a cold blue light pulses — the Seal?', 'event');
+    },
+    choices: [
+      { text: 'Fight through the undead (skeleton)', action: () => startCombat('skeleton', () => goToScene('crypts_deeper'), 'UNDEAD LEGIONS rise!') },
+      { text: 'Attempt to sneak past', action: () => {
+        if (G.spd >= 14 || G.abilities.includes('SHADOW STEP')) {
+          addStory('You slip through the shadows. Success!', 'event');
+          setTimeout(() => goToScene('crypts_deeper'), 800);
+        } else {
+          notify('Not fast enough to sneak!');
+          startCombat('skeleton', () => goToScene('crypts_deeper'), 'They spot you!');
+        }
+      }, cls: 'special-choice' },
+    ]
+  },
+
+  crypts_deeper: {
+    location: 'CITADEL CRYPTS — DEPTHS',
+    map: 'crypts',
+    text: () => {
+      addStory('CRYPTS — DEEPER LEVEL', 'location');
+      addStory('You find a SOUL GEM fragment glowing on an altar.', 'loot');
+      addStory('You also find a strange journal — the Necromancer\'s diary.', 'event');
+      addStory('"Day 1201: The Seal weakens. The Void speaks to me now directly."', 'npc');
+      addStory('"Day 1455: I no longer remember being alive. Only the Void remains."', 'npc');
+      addStory('Ahead: THE NECROMANCER\'S CHAMBER.', 'danger');
+      G.flags.crystal1 = G.flags.crystal1 || false;
+    },
+    choices: [
+      { text: 'Confront the Necromancer', action: () => startCombat('necromancer', () => goToScene('first_seal'), '⚠ BOSS BATTLE — THE NECROMANCER!') },
+      { text: 'Rest here (recover 30 HP)', action: () => { heal(30); notify('+30 HP'); goToScene('crypts_deeper'); } },
+    ]
+  },
+
+  first_seal: {
+    location: 'FIRST SEAL CHAMBER',
+    map: 'crypts',
+    text: () => {
+      addStory('FIRST SEAL CHAMBER', 'location');
+      addStory('The Necromancer crumbles to dust. The First Seal pulses.', 'event');
+      addStory('Before you: a VOID CRYSTAL and the Seal Mechanism.', 'event');
+      addStory('Activate the seal to lock the Gate (ORDER path),', '');
+      addStory('or take the crystal and leave it open (VOID/CHAOS path).', '');
+    },
+    choices: () => {
+      const chs = [
+        { text: 'Activate the First Seal (ORDER)', action: () => goToScene('seal1_order') },
+        { text: 'Take the Void Crystal (CHAOS/VOID)', action: () => goToScene('seal1_chaos'), cls: G.path === 'chaos' ? 'danger-choice' : 'special-choice' },
+      ];
+      return chs;
+    }
+  },
+
+  seal1_order: {
+    location: 'FIRST SEAL CHAMBER',
+    map: 'crypts',
+    text: () => {
+      addStory('You press your marked hand to the Seal.', '');
+      addStory('The First Seal LOCKS. A tremor shakes the Crypts.', 'event');
+      addStory('One of three seals now holds the Gate in check.', 'loot');
+      addStory('You feel lighter. The void-mark on your hand fades slightly.', '');
+      G.flags.seal1 = 'order'; G.path = G.path || 'order';
+      notify('SEAL 1 LOCKED — ORDER');
+    },
+    choices: [
+      { text: 'Return to Commander Vael', action: () => goToScene('vael_after_seal1') },
+    ]
+  },
+
+  seal1_chaos: {
+    location: 'FIRST SEAL CHAMBER',
+    map: 'crypts',
+    text: () => {
+      addStory('You pry the Void Crystal from the Seal mechanism.', '');
+      addStory('The Seal remains open. Power floods into you.', 'event');
+      addStory('+30 ATK and the Void grows stronger in this world.', 'loot');
+      addStory('The screaming of trapped souls fills the chamber.', 'danger');
+      addItem('void_crystal'); G.atk += 30; updateBars(); renderCharStats();
+      G.flags.seal1 = 'chaos'; G.flags.crystal1 = true;
+      G.path = G.flags.pledgedVoid ? 'void' : 'chaos';
+    },
+    choices: [
+      { text: 'Head to the Void Wastes (Second Seal)', action: () => goToScene('void_wastes') },
+    ]
+  },
+
+  vael_after_seal1: {
+    location: 'COMMANDER\'S HALL - CITADEL',
+    map: 'citadel',
+    text: () => {
+      addStory('Vael\'s face transforms with relief and renewed purpose.', '');
+      addStory('"The First Seal holds. We have a chance."', 'npc');
+      addStory('"Take this — the Wasteland Map and a VOID ARMOR.', 'npc');
+      addStory(' Find the Void Beast. Seal the Second."', 'npc');
+      addItem('void_armor'); G.flags.hasWastesMap = true;
+    },
+    choices: [
+      { text: 'Equip gear and head to the Void Wastes', action: () => openShop('citadel') },
+      { text: 'Head directly to the Void Wastes', action: () => goToScene('void_wastes') },
+    ]
+  },
+
+  // ==================== VOID WASTES ====================
+  void_wastes: {
+    location: 'THE VOID WASTES',
+    map: 'wastes',
+    text: () => {
+      addStory('THE VOID WASTES', 'location');
+      addStory('Cracked earth as far as the eye can see.', '');
+      addStory('Strange creatures prowl the broken landscape.', 'danger');
+      addStory('In the center: a massive pillar of black energy — the Second Seal.', 'event');
+      addStory('And coiled around it... the VOID BEAST.', 'danger');
+    },
+    choices: [
+      { text: 'Challenge the Void Beast directly', action: () => startCombat('voidBeast', () => goToScene('second_seal'), '⚠ BOSS — VOID BEAST awakens!') },
+      { text: 'Scout first (fight a goblin patrol)', action: () => startCombat('goblin', () => goToScene('wastes_scouted'), 'VOID GOBLINS on patrol!') },
+      { text: 'Rest and recover (if HP < 50%)', action: () => {
+        if (G.hp < G.maxHp * 0.5) { heal(Math.floor(G.maxHp * 0.3)); notify('+30% HP restored'); }
+        else { notify('HP is sufficient.'); }
+        goToScene('void_wastes');
+      }},
+    ]
+  },
+
+  wastes_scouted: {
+    location: 'THE VOID WASTES',
+    map: 'wastes',
+    text: () => {
+      addStory('Scouting the wastes, you find a weakpoint in the Beast\'s hide.', '');
+      addStory('First attack will deal double damage!', 'loot');
+      G.flags.wastesScout = true;
+    },
+    choices: [
+      { text: 'Attack the Void Beast with your knowledge', action: () => {
+        G.flags.doubleFirstHit = true;
+        startCombat('voidBeast', () => goToScene('second_seal'), '⚠ BOSS — VOID BEAST!');
+      }},
+    ]
+  },
+
+  second_seal: {
+    location: 'SECOND SEAL PILLAR',
+    map: 'wastes',
+    text: () => {
+      addStory('SECOND SEAL — THE VOID PILLAR', 'location');
+      addStory('The Void Beast falls. The Pillar trembles.', 'event');
+      addStory('A Void Crystal floats from the Beast\'s core.', 'loot');
+      addStory('Activate the Seal, or take the Crystal for more power?', '');
+    },
+    choices: () => [
+      { text: 'Activate the Second Seal (ORDER)', action: () => goToScene('seal2_order') },
+      { text: 'Take the Crystal (CHAOS/VOID)', action: () => goToScene('seal2_chaos'), cls: 'special-choice' },
+    ]
+  },
+
+  seal2_order: {
+    location: 'SECOND SEAL PILLAR',
+    map: 'wastes',
+    text: () => {
+      addStory('The Second Seal LOCKS.', '');
+      addStory('Two of three seals now hold the Void Gate in check.', 'event');
+      addStory('The Wastes begin to... heal. Slowly.', '');
+      addStory('+50 XP for closing the Seal.', 'loot');
+      gainXP(50); G.flags.seal2 = 'order';
+      notify('SEAL 2 LOCKED — ORDER');
+    },
+    choices: [
+      { text: 'Return to the Citadel for the Third Seal', action: () => goToScene('before_final') },
+    ]
+  },
+
+  seal2_chaos: {
+    location: 'SECOND SEAL PILLAR',
+    map: 'wastes',
+    text: () => {
+      addStory('You take the Crystal. The Pillar cracks.', '');
+      addStory('Void energy surges into the world like a dam breaking.', 'danger');
+      addStory('+40 ATK. The Void is now 2/3 open.', 'loot');
+      addItem('void_crystal'); G.atk += 40; G.flags.crystal2 = true;
+      G.flags.seal2 = 'chaos';
+      updateBars(); renderCharStats();
+    },
+    choices: [
+      { text: 'Head to the Final Seal — the Citadel\'s core', action: () => goToScene('before_final') },
+    ]
+  },
+
+  // ==================== FINAL ACT ====================
+  before_final: {
+    location: 'CROSSROADS OF FATE',
+    map: 'citadel',
+    text: () => {
+      addStory('CROSSROADS OF FATE', 'location');
+      addStory('You stand before the Citadel\'s inner sanctum.', '');
+      addStory('The Third and Final Seal lies within.', '');
+      addStory('The Dragon Lord has descended from the Void.', 'danger');
+      addStory('It stands atop the Citadel, ancient and terrible.', 'danger');
+      const seal1 = G.flags.seal1;
+      const seal2 = G.flags.seal2;
+      addStory(`Seals: First [${seal1 || '???'}] Second [${seal2 || '???'}]`, 'event');
+      addStory('The path you have walked will determine your ending.', 'event');
+    },
+    choices: () => {
+      const chs = [
+        { text: '⚔ FACE THE DRAGON LORD', action: () => startCombat('dragonLord', () => goToScene('third_seal'), '⚠⚠ FINAL BOSS — DRAGON LORD ⚠⚠'), cls: 'danger-choice' },
+      ];
+      if (G.flags.seal1 === 'order' && G.flags.seal2 === 'order') {
+        chs.unshift({ text: '🛡 Reinforce the ORDER seals (auto-win if level 5+)', action: () => {
+          if (G.level >= 5) goToScene('ending_order_easy');
+          else { notify('Need Level 5 for this!'); }
+        }});
+      }
+      if (G.path === 'void' && G.flags.crystal1 && G.flags.crystal2) {
+        chs.push({ text: '✨ PERFORM THE RITE OF UNMAKING', action: () => goToScene('ending_void'), cls: 'special-choice' });
+      }
+      return chs;
+    }
+  },
+
+  third_seal: {
+    location: 'THIRD SEAL CHAMBER',
+    map: 'void_gate',
+    text: () => {
+      addStory('THIRD SEAL CHAMBER — THE FINAL MOMENT', 'location');
+      addStory('The Dragon Lord falls. The Third Seal pulses.', '');
+      addStory('All the choices you\'ve made lead here.', 'event');
+      const seal1 = G.flags.seal1;
+      const seal2 = G.flags.seal2;
+      if (seal1 === 'order' && seal2 === 'order') {
+        addStory('Both previous seals hold. Activate the Third to close the Gate forever.', '');
+      } else if (seal1 === 'chaos' && seal2 === 'chaos') {
+        addStory('Both seals are broken. The Void pours in. You could be its ruler.', 'danger');
+      } else {
+        addStory('One seal holds, one is broken. The Gate flickers. Your choice determines the balance.', '');
+      }
+    },
+    choices: () => {
+      const s1 = G.flags.seal1; const s2 = G.flags.seal2;
+      const chs = [];
+      if (s1 === 'order' && s2 === 'order') {
+        chs.push({ text: 'Activate the Third Seal — CLOSE THE VOID GATE', action: () => goToScene('ending_order') });
+      } else if (s1 === 'chaos' && s2 === 'chaos') {
+        chs.push({ text: 'Destroy the Third Seal — BECOME THE VOID CHAMPION', action: () => goToScene('ending_chaos'), cls: 'danger-choice' });
+        chs.push({ text: 'Change your mind — Activate the Seal', action: () => goToScene('ending_order_partial') });
+      } else {
+        chs.push({ text: 'Activate the Third Seal (close the Gate)', action: () => goToScene('ending_order_partial') });
+        chs.push({ text: 'Destroy the Third Seal (embrace chaos)', action: () => goToScene('ending_chaos_partial'), cls: 'danger-choice' });
+      }
+      if (G.path === 'void') chs.push({ text: 'USE ALL THREE CRYSTALS — TRANSCENDENCE', action: () => goToScene('ending_void'), cls: 'special-choice' });
+      return chs;
+    }
+  },
+
+  // ==================== ENDINGS ====================
+  ending_order: {
+    location: 'THE VOID GATE — SEALED',
+    map: 'void_gate',
+    text: () => {
+      addStory('ENDING: THE SEAL OF ORDER', 'location');
+      addStory('You activate the Third Seal.', '');
+      addStory('Three locks click into place across the fabric of reality.', 'event');
+      addStory('THE VOID GATE CLOSES.', 'loot');
+      addStory('The Dread Marshal screams as his power source collapses.', '');
+      addStory('Vael clasps your shoulder. "You\'ve saved us all."', 'npc');
+      addStory('The Void retreats. The world has time to heal.', '');
+      addStory('Ashford rebuilds. The Citadel stands guard.', '');
+      addStory(`${G.playerName} is celebrated as the Hero of the Three Seals.`, 'loot');
+      addStory('But late at night, you still feel the void-mark on your hand...', '');
+      addStory('...and wonder if the Gate can ever truly be sealed forever.', '');
+      showEndGame('ORDER ENDING', '✧ THE GUARDIAN ✧', 'You sealed all three Void Gates. The world is safe — for now. A hero\'s ending for a hero\'s choices.');
+    },
+    choices: []
+  },
+
+  ending_order_easy: {
+    location: 'THE VOID GATE — SEALED',
+    map: 'void_gate',
+    text: () => {
+      addStory('The power of two locked seals resonates.', '');
+      addStory('The Dragon Lord is driven back by the combined seal energy.', '');
+      addStory('You activate the Third Seal without even a fight.', 'event');
+      showEndGame('PERFECT ORDER ENDING', '✧ THE GUARDIAN SUPREME ✧', 'The three seals held. The Void Gate closed without further bloodshed. True mastery of the ORDER path.');
+    },
+    choices: []
+  },
+
+  ending_order_partial: {
+    location: 'THE VOID GATE',
+    map: 'void_gate',
+    text: () => {
+      addStory('Two seals activated, one corrupted.', '');
+      addStory('The Gate seals... but not completely.', '');
+      addStory('A crack remains. The Void will return. In a century. Maybe less.', '');
+      addStory(`${G.playerName} bought the world precious time, but not salvation.`, '');
+      addStory('"It will have to be enough,"', 'npc');
+      addStory('the Oracle says quietly, watching the diminished Gate.', '');
+      showEndGame('PARTIAL ORDER ENDING', '◈ THE KEEPER ◈', 'The Gate is partially sealed. A temporary victory. Future generations will have to finish what you started.');
+    },
+    choices: []
+  },
+
+  ending_chaos: {
+    location: 'THE VOID THRONE',
+    map: 'void_gate',
+    text: () => {
+      addStory('ENDING: THE VOID CHAMPION', 'location');
+      addStory('All three seals shatter. The Void Gate SCREAMS OPEN.', 'danger');
+      addStory('The void-mark erupts up your arm, across your body.', 'danger');
+      addStory('You transform. Not death. Something far more terrible.', '');
+      addStory('THE VOID NAMES YOU ITS CHAMPION.', 'event');
+      addStory('Vael and his soldiers fight... and lose.', '');
+      addStory('The world bends knee or burns.', '');
+      addStory(`In ten years, ${G.playerName} rules a world of shadow.`, '');
+      addStory('The Void is satisfied. For now.', '');
+      showEndGame('CHAOS ENDING', '💀 THE VOID CHAMPION 💀', 'You shattered all three seals and became the Void\'s champion. A dark victory — the world is yours. But what is a ruler without subjects?');
+    },
+    choices: []
+  },
+
+  ending_chaos_partial: {
+    location: 'THE VOID THRONE',
+    map: 'void_gate',
+    text: () => {
+      addStory('One seal locks, two shatter. A partial Void opening.', '');
+      addStory('You gain great power but the Void does not fully accept you.', '');
+      addStory('Caught between worlds: too dark for the light, too human for the Void.', '');
+      addStory('An uneasy ruler of an uneasy realm.', '');
+      showEndGame('CHAOS PARTIAL ENDING', '⚡ THE VOID-TOUCHED ⚡', 'Neither fully human nor fully Void. You rule the corrupted lands but find no peace. A warning for those who walk between worlds.');
+    },
+    choices: []
+  },
+
+  ending_void: {
+    location: 'THE ORACLE\'S TOWER',
+    map: 'ashford',
+    text: () => {
+      addStory('ENDING: TRANSCENDENCE', 'location');
+      addStory('You return to the Oracle with all three Void Crystals.', '');
+      addStory('She begins the Rite of Unmaking without a word.', 'event');
+      addStory('The crystals orbit your body, pulling the Void-mark from your skin.', 'event');
+      addStory('"The Gate cannot be sealed from outside," she says,', 'npc');
+      addStory('"only from within. You already knew that."', 'npc');
+      addStory('You step through the Gate.', '');
+      addStory('From inside, you close it.', 'event');
+      addStory('THE VOID GATE UNMAKES ITSELF.', 'loot');
+      addStory(`${G.playerName} is not dead. Not alive. Simply... gone.`, '');
+      addStory('Somewhere in the Void, a new star appears.', '');
+      addStory('The Oracle smiles.', '');
+      showEndGame('TRANSCENDENCE ENDING', '✨ THE UNMADE ✨', 'You sacrificed yourself to unmake the Void Gate from within. Not death — transformation. The rarest and most difficult ending. Truly extraordinary.');
+    },
+    choices: []
+  },
+};
+
+// ===========================
+// STORY HELPERS
+// ===========================
+function clearStory() {
+  document.getElementById('story-text').innerHTML = '';
+  document.getElementById('choices-area').innerHTML = '';
+}
+
+function addStory(text, type = '') {
+  const div = document.createElement('div');
+  div.className = `story-line${type ? ' story-' + type : ''}`;
+  div.textContent = text;
+  document.getElementById('story-text').appendChild(div);
+  document.getElementById('story-text').scrollTop = 9999;
+}
+
+function addStoryLines(lines) {
+  if (Array.isArray(lines)) lines.forEach(l => addStory(l));
+  else addStory(lines);
+}
+
+function showChoices(choices) {
+  const area = document.getElementById('choices-area');
+  area.innerHTML = '';
+  choices.forEach((ch, i) => {
+    const btn = document.createElement('button');
+    btn.className = `choice-btn${ch.cls ? ' ' + ch.cls : ''}`;
+    btn.textContent = `[${i + 1}] ${ch.text}`;
+    btn.onclick = () => {
+      addStory(`> ${ch.text}`, 'choice-made');
+      btn.disabled = true;
+      area.innerHTML = '';
+      setTimeout(() => ch.action(), 200);
+    };
+    area.appendChild(btn);
+  });
+}
+
+// ===========================
+// COMBAT SYSTEM
+// ===========================
+function startCombat(enemyId, callback, flavorText) {
+  const enemyTemplate = ENEMIES[enemyId];
+  currentEnemy = JSON.parse(JSON.stringify(enemyTemplate));
+  currentEnemy.statusEffects = [];
+  combatCallback = callback;
+  combatTurn = 0;
+  playerDodge = false;
+
+  if (G.flags.doubleFirstHit) {
+    currentEnemy._doubleHit = true;
+    G.flags.doubleFirstHit = false;
+  }
+
+  // Apply scouting bonus
+  addStory(flavorText, currentEnemy.isBoss ? 'danger' : 'event');
+
+  // Setup UI
+  document.getElementById('combat-overlay').classList.add('active');
+  document.getElementById('combat-title').textContent = currentEnemy.isBoss ? `⚠ BOSS BATTLE: ${currentEnemy.name} ⚠` : `⚔ BATTLE: ${currentEnemy.name}`;
+  document.getElementById('combat-title').style.color = currentEnemy.isBoss ? 'var(--amber)' : 'var(--red)';
+  
+  document.getElementById('combat-player-name').textContent = G.playerName;
+  document.getElementById('combat-player-sprite').textContent = CLASS_DATA[G.class].sprite;
+  document.getElementById('combat-player-sprite').style.color = CLASS_DATA[G.class].color;
+  
+  document.getElementById('combat-enemy-name').textContent = currentEnemy.name;
+  document.getElementById('combat-enemy-sprite').textContent = SPRITES[currentEnemy.sprite] || '???';
+
+  document.getElementById('combat-log').innerHTML = '';
+  logCombat(`${currentEnemy.name} engages!`, 'enemy_atk');
+
+  updateCombatBars();
+  buildCombatActions();
+}
+
+function buildCombatActions() {
+  const area = document.getElementById('combat-actions');
+  area.innerHTML = '';
+
+  const mkBtn = (label, cls, fn, disabled = false) => {
+    const b = document.createElement('button');
+    b.className = `combat-btn ${cls}`;
+    b.textContent = label;
+    b.disabled = disabled;
+    b.onclick = fn;
+    area.appendChild(b);
+    return b;
+  };
+
+  mkBtn('⚔ ATTACK', '', () => playerAttack());
+  mkBtn('🛡 DEFEND', 'blue', () => playerDefend());
+
+  // Abilities
+  G.abilities.forEach(abilId => {
+    const ab = ABILITIES[abilId];
+    if (!ab) return;
+    mkBtn(`✦ ${ab.name} (${ab.mpCost}MP)`, 'amber', () => {
+      if (G.mp >= ab.mpCost) {
+        G.mp -= ab.mpCost;
+        updateBars();
+        ab.fn(currentEnemy);
+        updateCombatBars();
+        if (currentEnemy.hp <= 0) { endCombat(true); return; }
+        setTimeout(() => enemyTurn(), 700);
+      } else {
+        logCombat('Not enough MP!', 'miss');
+      }
+    }, G.mp < ab.mpCost);
+  });
+
+  // Use items in combat
+  const usables = G.inventory.filter(i => i.type === 'consumable');
+  if (usables.length > 0) {
+    mkBtn('🧪 USE ITEM', '', () => showCombatItems());
+  }
+
+  mkBtn('🏃 FLEE', 'red', () => {
+    if (Math.random() < 0.45 + G.spd * 0.02) {
+      logCombat('You flee the battle!', 'miss');
+      setTimeout(() => {
+        document.getElementById('combat-overlay').classList.remove('active');
+        goToScene('ashford_arrive');
+      }, 600);
+    } else {
+      logCombat('Couldn\'t escape!', 'miss');
+      setTimeout(() => enemyTurn(), 700);
+    }
+  });
+}
+
+function showCombatItems() {
+  const area = document.getElementById('combat-actions');
+  area.innerHTML = '';
+  G.inventory.filter(i => i.type === 'consumable').forEach(item => {
+    const b = document.createElement('button');
+    b.className = 'combat-btn amber';
+    b.textContent = `${item.icon} ${item.name}`;
+    b.onclick = () => {
+      item.effect(G);
+      G.inventory.splice(G.inventory.indexOf(item), 1);
+      renderInventory();
+      updateBars(); updateCombatBars();
+      if (G.hp <= 0) { endCombat(false); return; }
+      setTimeout(() => enemyTurn(), 700);
+      buildCombatActions();
+    };
+    area.appendChild(b);
+  });
+  const back = document.createElement('button');
+  back.className = 'combat-btn';
+  back.textContent = '← BACK';
+  back.onclick = () => buildCombatActions();
+  area.appendChild(back);
+}
+
+function calcDamage() {
+  const base = G.atk + Math.floor(Math.random() * 6) - 3;
+  const isCrit = Math.random() * 100 < G.crit;
+  return { dmg: Math.max(1, isCrit ? Math.floor(base * 2) : base), crit: isCrit };
+}
+
+function dealDamage(enemy, amount) {
+  const reduced = Math.max(1, amount - Math.floor(enemy.def / 2));
+  enemy.hp = Math.max(0, enemy.hp - reduced);
+  updateCombatBars();
+  return reduced;
+}
+
+function playerAttack() {
+  if (!currentEnemy || currentEnemy.statusEffects.find(s => s.skip)) {
+    logCombat('Enemy cannot be hit right now!', 'miss'); return;
+  }
+
+  let { dmg, crit } = calcDamage();
+  if (currentEnemy._doubleHit) { dmg *= 2; currentEnemy._doubleHit = false; logCombat('SCOUTED WEAK POINT! Double damage!', 'crit'); }
+
+  const frozen = currentEnemy.statusEffects.find(s => s.name === 'FREEZE');
+  const stunned = currentEnemy.statusEffects.find(s => s.name === 'STUN');
+
+  const finalDmg = dealDamage(currentEnemy, dmg);
+
+  if (crit) logCombat(`CRITICAL HIT! ${finalDmg} damage to ${currentEnemy.name}!`, 'crit');
+  else if (frozen || stunned) logCombat(`${currentEnemy.name} is immobilized! ${finalDmg} damage!`, 'player_atk');
+  else logCombat(`You attack for ${finalDmg} damage.`, 'player_atk');
+
+  if (currentEnemy.hp <= 0) { endCombat(true); return; }
+  setTimeout(() => enemyTurn(), 700);
+}
+
+function playerDefend() {
+  const bonus = Math.floor(G.def * 0.5);
+  G._defBonus = bonus;
+  logCombat(`Defending! +${bonus} DEF this turn.`, 'status');
+  setTimeout(() => enemyTurn(), 700);
+}
+
+function enemyTurn() {
+  if (!currentEnemy || currentEnemy.hp <= 0) return;
+  combatTurn++;
+
+  // Process enemy status effects
+  currentEnemy.statusEffects = currentEnemy.statusEffects.filter(s => {
+    if (s.effect) s.effect(currentEnemy);
+    s.turns--;
+    if (currentEnemy.hp <= 0) { endCombat(true); return false; }
+    return s.turns > 0;
+  });
+
+  if (currentEnemy.hp <= 0) { endCombat(true); return; }
+
+  // Check if stunned/frozen
+  const stunned = currentEnemy.statusEffects.find(s => s.name === 'STUN' || s.name === 'FREEZE');
+  if (stunned) { logCombat(`${currentEnemy.name} is ${stunned.name}! Skips turn.`, 'miss'); updateCombatBars(); buildCombatActions(); return; }
+
+  // Process player status effects
+  G.statusEffects = G.statusEffects.filter(s => {
+    if (s.effect) s.effect(G);
+    s.turns--;
+    if (G.hp <= 0) { endCombat(false); return false; }
+    updateBars();
+    return s.turns > 0;
+  });
+
+  if (G.hp <= 0) { endCombat(false); return; }
+
+  // Enemy ability (30% chance)
+  const useAbility = currentEnemy.abilities.length && Math.random() < 0.3;
+  if (useAbility) {
+    const abilName = currentEnemy.abilities[Math.floor(Math.random() * currentEnemy.abilities.length)];
+    doEnemyAbility(abilName);
+  } else {
+    // Normal attack
+    const dodge = G.statusEffects.find(s => s.name === 'DODGE');
+    if (dodge || playerDodge) {
+      logCombat(`${currentEnemy.name} attacks — YOU DODGE!`, 'miss');
+      G.statusEffects = G.statusEffects.filter(s => s.name !== 'DODGE');
+      playerDodge = false;
+    } else {
+      let atkDmg = currentEnemy.atk + Math.floor(Math.random() * 6) - 3;
+      const defBonus = G._defBonus || 0;
+      G._defBonus = 0;
+      const finalDef = G.def + defBonus;
+      const finalDmg = Math.max(1, atkDmg - Math.floor(finalDef / 2));
+      G.hp = Math.max(0, G.hp - finalDmg);
+      logCombat(`${currentEnemy.name} attacks for ${finalDmg} damage!`, 'enemy_atk');
+      updateBars(); updateCombatBars();
+      document.getElementById('combat-player-sprite').classList.add('shake');
+      setTimeout(() => document.getElementById('combat-player-sprite').classList.remove('shake'), 400);
+    }
+  }
+
+  if (G.hp <= 0) { endCombat(false); return; }
+  buildCombatActions();
+}
+
+function doEnemyAbility(name) {
+  switch (name) {
+    case 'HOWL': logCombat(`${currentEnemy.name} HOWLS! You feel fear.`, 'status'); G.atk = Math.max(1, G.atk - 3); setTimeout(() => G.atk += 3, 3000); break;
+    case 'BONE_THROW': { const d = Math.max(1, currentEnemy.atk + 5 - Math.floor(G.def / 2)); G.hp -= d; logCombat(`Bone throw hits for ${d}!`, 'enemy_atk'); updateBars(); break; }
+    case 'POISON_BLADE': { const d = Math.max(1, currentEnemy.atk - Math.floor(G.def / 2)); G.hp -= d; addPlayerStatus('POISON', '☠️', 3, (g) => { g.hp -= 5; updateBars(); logCombat('Poison deals 5 damage!', 'enemy_atk'); }); logCombat(`Poison blade! ${d} dmg + POISONED!`, 'status'); updateBars(); break; }
+    case 'DARK_SLASH': { const d = Math.max(1, Math.floor(currentEnemy.atk * 1.8) - Math.floor(G.def / 2)); G.hp -= d; logCombat(`DARK SLASH for ${d} massive damage!`, 'enemy_atk'); updateBars(); break; }
+    case 'INTIMIDATE': logCombat(`${currentEnemy.name} INTIMIDATES you! -4 ATK temp`, 'status'); G.atk -= 4; setTimeout(() => G.atk += 4, 5000); break;
+    case 'DRAIN_SOUL': { const d = Math.max(1, G.int - Math.floor(G.def / 3)); G.hp -= d; currentEnemy.hp = Math.min(currentEnemy.maxHp, currentEnemy.hp + d); logCombat(`Soul drain: ${d} dmg stolen!`, 'status'); updateBars(); updateCombatBars(); break; }
+    case 'RAISE_DEAD': logCombat('Necromancer raises undead! Enemy heals 20 HP!', 'status'); currentEnemy.hp = Math.min(currentEnemy.maxHp, currentEnemy.hp + 20); updateCombatBars(); break;
+    case 'VOID_STRIKE': { const d = Math.max(1, Math.floor(currentEnemy.atk * 2) - Math.floor(G.def / 2)); G.hp -= d; logCombat(`VOID STRIKE! ${d} void damage!`, 'enemy_atk'); updateBars(); break; }
+    case 'REGENERATE': currentEnemy.hp = Math.min(currentEnemy.maxHp, currentEnemy.hp + 25); logCombat('Void Beast REGENERATES 25 HP!', 'status'); updateCombatBars(); break;
+    case 'FIRE_BREATH': { const d = Math.max(1, Math.floor(currentEnemy.atk * 2.5) - Math.floor(G.def / 2)); G.hp -= d; addPlayerStatus('BURN', '🔥', 2, (g) => { g.hp -= 8; updateBars(); logCombat('BURNING for 8 damage!', 'enemy_atk'); }); logCombat(`FIRE BREATH! ${d} damage + BURN!`, 'enemy_atk'); updateBars(); break; }
+    case 'TAIL_SWEEP': { const d = Math.max(1, Math.floor(currentEnemy.atk * 1.5) - Math.floor(G.def / 2)); G.hp -= d; logCombat(`Tail Sweep! ${d} damage! Knocked back!`, 'enemy_atk'); updateBars(); break; }
+    case 'VOID_ROAR': { G.atk -= 8; G.def -= 4; logCombat('VOID ROAR! -8 ATK -4 DEF for 3 turns!', 'status'); setTimeout(() => { G.atk += 8; G.def += 4; }, 9000); break; }
+  }
+}
+
+function addStatus(enemy, name, icon, turns, effect, skip = false) {
+  enemy.statusEffects = enemy.statusEffects.filter(s => s.name !== name);
+  enemy.statusEffects.push({ name, icon, turns, effect, skip });
+  updateCombatBars();
+}
+
+function addPlayerStatus(name, icon, turns, effect, isDodge = false) {
+  G.statusEffects = G.statusEffects.filter(s => s.name !== name);
+  G.statusEffects.push({ name, icon, turns, effect });
+  if (isDodge) playerDodge = true;
+  document.getElementById('status-disp').style.display = 'flex';
+  document.getElementById('status-name').textContent = name;
+  updateCombatBars();
+}
+
+function removeStatus(name) {
+  G.statusEffects = G.statusEffects.filter(s => s.name !== name);
+}
+
+function endCombat(playerWon) {
+  if (playerWon) {
+    const enemy = currentEnemy;
+    G.kills++;
+    gainXP(enemy.xp);
+    G.gold += enemy.gold;
+    updateGold();
+    logCombat(`Victory! +${enemy.xp} XP +${enemy.gold} gold`, 'player_atk');
+    setTimeout(() => {
+      document.getElementById('combat-overlay').classList.remove('active');
+      if (combatCallback) combatCallback();
+    }, 1200);
+  } else {
+    logCombat('YOU HAVE FALLEN...', 'enemy_atk');
+    setTimeout(() => {
+      document.getElementById('combat-overlay').classList.remove('active');
+      showGameOver();
+    }, 1500);
+  }
+}
+
+function updateCombatBars() {
+  if (!currentEnemy) return;
+  const pPct = Math.max(0, (G.hp / G.maxHp) * 100);
+  const ePct = Math.max(0, (currentEnemy.hp / currentEnemy.maxHp) * 100);
+  document.getElementById('combat-player-hp').style.width = pPct + '%';
+  document.getElementById('combat-player-hp-text').textContent = `${G.hp}/${G.maxHp}`;
+  document.getElementById('combat-enemy-hp').style.width = ePct + '%';
+  document.getElementById('combat-enemy-hp-text').textContent = `${currentEnemy.hp}/${currentEnemy.maxHp}`;
+
+  // Status icons
+  const pIcons = document.getElementById('player-status-icons');
+  const eIcons = document.getElementById('enemy-status-icons');
+  pIcons.innerHTML = G.statusEffects.map(s => `<span class="status-icon">${s.icon}${s.turns}</span>`).join('');
+  eIcons.innerHTML = currentEnemy.statusEffects.map(s => `<span class="status-icon">${s.icon}${s.turns}</span>`).join('');
+}
+
+function logCombat(text, type = '') {
+  const el = document.getElementById('combat-log');
+  const div = document.createElement('div');
+  div.className = `combat-log-line log-${type}`;
+  div.textContent = text;
+  el.appendChild(div);
+  el.scrollTop = 9999;
+}
+
+function heal(amount) {
+  G.hp = Math.min(G.maxHp, G.hp + amount);
+  updateBars();
+}
+
+// ===========================
+// LEVELING
+// ===========================
+function gainXP(amount) {
+  G.xp += amount;
+  updateBars();
+  while (G.xp >= G.xpNeeded) {
+    G.xp -= G.xpNeeded;
+    G.xpNeeded = Math.floor(G.xpNeeded * 1.5);
+    G.level++;
+    document.getElementById('level-disp').textContent = G.level;
+    showLevelUp();
+  }
+}
+
+function showLevelUp() {
+  const opts = [
+    { name: '+15 MAX HP', desc: 'Increase health pool', fn: () => { G.maxHp += 15; G.hp = Math.min(G.hp + 15, G.maxHp); } },
+    { name: '+8 ATK', desc: 'Raw damage power', fn: () => G.atk += 8 },
+    { name: '+6 DEF', desc: 'Damage reduction', fn: () => G.def += 6 },
+    { name: '+5 SPD', desc: 'Speed & evasion', fn: () => G.spd += 5 },
+    { name: '+8 INT', desc: 'Spell power', fn: () => G.int += 8 },
+    { name: '+10 CRIT%', desc: 'Critical hit chance', fn: () => G.crit += 10 },
+    { name: '+20 MAX MP', desc: 'Mana capacity', fn: () => { G.maxMp += 20; G.mp = Math.min(G.mp + 20, G.maxMp); } },
+    { name: 'FULL HEAL', desc: 'Restore all HP & MP', fn: () => { G.hp = G.maxHp; G.mp = G.maxMp; } },
+    { name: 'LEARN ABILITY', desc: 'Unlock new skill', fn: () => learnRandomAbility() },
+  ];
+
+  // Pick 3 random distinct options
+  const picks = [];
+  while (picks.length < 3) {
+    const pick = opts[Math.floor(Math.random() * opts.length)];
+    if (!picks.includes(pick)) picks.push(pick);
+  }
+
+  const container = document.getElementById('levelup-choices');
+  container.innerHTML = '';
+  picks.forEach(opt => {
+    const div = document.createElement('div');
+    div.className = 'levelup-choice';
+    div.innerHTML = `<span class="levelup-choice-name">${opt.name}</span><div class="levelup-choice-desc">${opt.desc}</div>`;
+    div.onclick = () => {
+      opt.fn();
+      updateBars(); renderCharStats();
+      document.getElementById('levelup-overlay').classList.remove('active');
+      notify(`Level ${G.level}! ${opt.name}`);
+    };
+    container.appendChild(div);
+  });
+
+  document.getElementById('levelup-overlay').classList.add('active');
+}
+
+function learnRandomAbility() {
+  const all = Object.keys(ABILITIES);
+  const unknown = all.filter(a => !G.abilities.includes(a));
+  if (unknown.length === 0) { G.atk += 5; notify('+5 ATK (all abilities learned)'); return; }
+  const pick = unknown[Math.floor(Math.random() * unknown.length)];
+  G.abilities.push(pick);
+  notify(`✨ Learned ${ABILITIES[pick].name}!`);
+}
+
+// ===========================
+// INVENTORY & SHOP
+// ===========================
+function addItem(id) {
+  const item = ITEMS[id];
+  if (!item) return;
+  G.inventory.push({ id, ...item });
+  renderInventory();
+  notify(`Obtained: ${item.icon} ${item.name}`);
+}
+
+function renderInventory() {
+  const grid = document.getElementById('inv-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < 12; i++) {
+    const slot = document.createElement('div');
+    const item = G.inventory[i];
+    if (item) {
+      slot.className = `inv-slot${G.equipped.weapon === i || G.equipped.armor === i || G.equipped.accessory === i ? ' equipped' : ''}`;
+      slot.innerHTML = `${item.icon}<div class="tooltip">${item.name}<br>${item.desc}</div>`;
+      slot.onclick = () => useItem(i);
+    } else {
+      slot.className = 'inv-slot empty';
+      slot.textContent = '·';
+    }
+    grid.appendChild(slot);
+  }
+}
+
+function useItem(index) {
+  const item = G.inventory[index];
+  if (!item) return;
+  if (item.type === 'consumable') {
+    item.effect(G);
+    G.inventory.splice(index, 1);
+    renderInventory(); updateBars(); renderCharStats();
+  } else if (item.type === 'weapon' || item.type === 'armor' || item.type === 'accessory') {
+    // Equip
+    const slot = item.type;
+    const prev = G.equipped[slot];
+    if (prev !== null) {
+      // Unequip old
+      const old = G.inventory[prev];
+      if (old && old.stats) Object.keys(old.stats).forEach(k => { G[k] -= old.stats[k]; });
+    }
+    G.equipped[slot] = index;
+    if (item.stats) Object.keys(item.stats).forEach(k => { G[k] += item.stats[k]; });
+    renderInventory(); updateBars(); renderCharStats();
+    notify(`Equipped: ${item.name}`);
+  }
+}
+
+function openShop(shopId) {
+  currentShop = shopId;
+  document.getElementById('shop-overlay').classList.add('active');
+  document.getElementById('shop-gold-disp').textContent = `Your gold: ${G.gold} ⬡`;
+  const grid = document.getElementById('shop-items');
+  grid.innerHTML = '';
+  (SHOP_STOCK[shopId] || []).forEach(itemId => {
+    const item = ITEMS[itemId];
+    const price = SHOP_PRICES[itemId] || 99;
+    const div = document.createElement('div');
+    div.className = `shop-item${G.gold < price ? ' cant-afford' : ''}`;
+    div.innerHTML = `<span class="item-icon">${item.icon}</span><span class="item-name">${item.name}</span><span class="item-desc">${item.desc}</span><span class="item-price">⬡ ${price}</span>`;
+    div.onclick = () => {
+      if (G.gold >= price) {
+        G.gold -= price;
+        addItem(itemId);
+        updateGold();
+        document.getElementById('shop-gold-disp').textContent = `Your gold: ${G.gold} ⬡`;
+        // Re-render
+        grid.querySelectorAll('.shop-item').forEach(el => {
+          const pid = SHOP_PRICES[el.dataset.id];
+          if (pid && G.gold < pid) el.classList.add('cant-afford');
+        });
+      } else { notify('Not enough gold!'); }
+    };
+    div.dataset.id = itemId;
+    grid.appendChild(div);
+  });
+}
+
+function closeShop() {
+  document.getElementById('shop-overlay').classList.remove('active');
+}
+
+// ===========================
+// RENDERS
+// ===========================
+function updateBars() {
+  const hpPct = Math.max(0, (G.hp / G.maxHp) * 100);
+  const mpPct = Math.max(0, (G.mp / G.maxMp) * 100);
+  const xpPct = Math.max(0, (G.xp / G.xpNeeded) * 100);
+  document.getElementById('hp-bar').style.width = hpPct + '%';
+  document.getElementById('mp-bar').style.width = mpPct + '%';
+  document.getElementById('xp-bar').style.width = xpPct + '%';
+  document.getElementById('hp-text').textContent = `${G.hp}/${G.maxHp}`;
+  document.getElementById('mp-text').textContent = `${G.mp}/${G.maxMp}`;
+  document.getElementById('xp-text').textContent = `${G.xp}/${G.xpNeeded}`;
+}
+
+function updateGold() {
+  document.getElementById('gold-disp').textContent = G.gold;
+}
+
+function renderCharStats() {
+  const el = document.getElementById('char-stats-display');
+  el.innerHTML = ['atk', 'def', 'spd', 'int', 'crit'].map(s => `
+    <div class="char-stat-row">
+      <span class="char-stat-name">${s.toUpperCase()}</span>
+      <span class="char-stat-val">${G[s]}${s === 'crit' ? '%' : ''}</span>
+    </div>
+  `).join('');
+}
+
+function renderAbilities() {
+  const el = document.getElementById('abilities-display');
+  el.innerHTML = '<div class="panel-header" style="margin:-0px -12px 6px;padding:6px 12px">◈ ABILITIES</div>';
+  G.abilities.forEach(id => {
+    const ab = ABILITIES[id];
+    if (!ab) return;
+    const div = document.createElement('div');
+    div.className = 'ability-item';
+    div.innerHTML = `<span class="ability-name">${ab.name}</span><span class="ability-cost">${ab.mpCost}MP</span>`;
+    el.appendChild(div);
+  });
+}
+
+// ===========================
+// MAP RENDERING
+// ===========================
+const MAPS = {
+  void_gate: [
+    '█████████████',
+    '█░░░░░░░░░░░█',
+    '█░░░╔═╗░░░░█',
+    '█░░░║▓║░░░░█',
+    '█░░╔╩═╩╗░░░█',
+    '█░░╚═════╝░░█',
+    '█░░░░@░░░░░█',
+    '█░░░░│░░░░░█',
+    '██░░░░░░░░██',
+    '███░░░░░░███',
+    '█████░░█████',
+    '████████████',
+  ],
+  ashford: [
+    '████░░░░████',
+    '██░░░░░░░░██',
+    '█░░╔══╗░░░░█',
+    '█░░║⌂ ║░░░█',
+    '█░░╚══╝░░░░█',
+    '█░░░░░╔═╗░░█',
+    '█░░░░░║$║░░█',
+    '█░░░@░╚═╝░░█',
+    '██░░░░░░░░██',
+    '████░░░░████',
+  ],
+  woods: [
+    '▓▓▓▓▓▓▓▓▓▓▓▓',
+    '▓▓░░░░░░░░▓▓',
+    '▓░░╔══╗░░░░▓',
+    '▓░░║♣ ║░░░▓',
+    '▓░░╚══╝░░░▓',
+    '▓░░░@░░░░░▓',
+    '▓░░░░▓░░░░▓',
+    '▓░░░░░░░░░▓',
+    '▓▓░░░░░░░▓▓',
+    '▓▓▓▓▓▓▓▓▓▓▓',
+  ],
+  citadel: [
+    '▓▓▓▓░░░░▓▓▓▓',
+    '▓░░░░░░░░░░▓',
+    '░░╔════════╗░',
+    '░░║  VAEL  ║░',
+    '░░║ ██████ ║░',
+    '░░╚══╗ ╔══╝░',
+    '░░░░░║ ║░░░░',
+    '░░░░░@ │░░░░',
+    '░░░░░░░░░░░░',
+    '████░░░░████',
+  ],
+  crypts: [
+    '████████████',
+    '█░░░░░░░░░░█',
+    '█░╔══╗╔══╗░█',
+    '█░║☠ ║║☠ ║░█',
+    '█░╚══╝╚══╝░█',
+    '█░░░░░░░░░░█',
+    '█░░░@░░░░░░█',
+    '█░░░░▼░░░░░█',
+    '█░░░░░░░░░░█',
+    '████████████',
+  ],
+  road: [
+    '░░░░░░░░░░░░',
+    '▓▓░░░░░░░░▓▓',
+    '▓░░╔════╗░░▓',
+    '▓░░║ROAD║░░▓',
+    '▓░░╚════╝░░▓',
+    '▓░░░@░░░░░░▓',
+    '▓▓░░░░░░░░▓▓',
+    '░░░░░░░░░░░░',
+    '████████████',
+  ],
+  wastes: [
+    '············',
+    '·╔════════╗·',
+    '·║VOID     ║·',
+    '·║  WASTES ║·',
+    '·╚════════╝·',
+    '····@·······',
+    '············',
+    '████████████',
+  ],
+  vault: [
+    '████████████',
+    '███░░░░░░███',
+    '██░░╔══╗░░██',
+    '█░░░║◎ ║░░░█',
+    '█░░░╚══╝░░░█',
+    '█░░░░@░░░░░█',
+    '█░░░░│░░░░░█',
+    '████░░░░████',
+    '████████████',
+  ],
+  default: [
+    '············',
+    '·░░░░░░░░░·',
+    '·░░@░░░░░·',
+    '·░░░░░░░░·',
+    '············',
+  ],
+};
+
+function updateMap(mapId) {
+  const map = MAPS[mapId] || MAPS.default;
+  const canvas = document.getElementById('map-canvas');
+  canvas.innerHTML = map.join('\n');
+}
+
+// ===========================
+// NOTIFICATIONS
+// ===========================
+function notify(msg) {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.style.display = 'none', 2800);
+}
+
+// ===========================
+// ENDGAME
+// ===========================
+function showEndGame(title, art, msg) {
+  setTimeout(() => {
+    const overlay = document.getElementById('endgame-overlay');
+    const kills = G.kills;
+    const time = G.turn;
+    
+    const artMap = {
+      '✧ THE GUARDIAN ✧': `
+  ╔══════════════╗
+  ║   ORDER      ║
+  ║  ╔═════╗    ║
+  ║  ║  ✦  ║    ║
+  ║  ╚═════╝    ║
+  ║  THE GATE   ║
+  ║  IS SEALED  ║
+  ╚══════════════╝`,
+      '💀 THE VOID CHAMPION 💀': `
+  ╔══════════════╗
+  ║   C H A O S  ║
+  ║  ◄░░░░░░░►  ║
+  ║  THE VOID   ║
+  ║  OBEYS YOU  ║
+  ╚══════════════╝`,
+      '✨ THE UNMADE ✨': `
+  ╔══════════════╗
+  ║ TRANSCEND    ║
+  ║  ·✦·✦·✦·   ║
+  ║  YOU BECAME  ║
+  ║  THE GATE    ║
+  ╚══════════════╝`,
+    };
+
+    document.getElementById('endgame-art').textContent = artMap[art] || '';
+    document.getElementById('endgame-art').style.color = 
+      art.includes('GUARDIAN') ? 'var(--green)' :
+      art.includes('VOID') ? 'var(--red)' : 'var(--purple)';
+    document.getElementById('endgame-title').textContent = art;
+    document.getElementById('endgame-title').style.color = 
+      art.includes('GUARDIAN') ? 'var(--green)' :
+      art.includes('VOID') ? 'var(--red)' : 'var(--purple)';
+    document.getElementById('endgame-msg').textContent = msg;
+    document.getElementById('endgame-stats').textContent = 
+      `${G.playerName} | Lv.${G.level} ${G.class.toUpperCase()} | ${kills} enemies slain | ${G.gold} gold`;
+    
+    overlay.classList.add('active');
+  }, 1500);
+}
+
+function showGameOver() {
+  document.getElementById('endgame-art').textContent = `
+  ██████╗ ███████╗ █████╗ ████████╗██╗  ██╗
+  ██╔══██╗██╔════╝██╔══██╗╚══██╔══╝██║  ██║
+  ██║  ██║█████╗  ███████║   ██║   ███████║
+  ██║  ██║██╔══╝  ██╔══██║   ██║   ██╔══██║
+  ██████╔╝███████╗██║  ██║   ██║   ██║  ██║
+  ╚═════╝ ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝`;
+  document.getElementById('endgame-art').style.color = 'var(--red)';
+  document.getElementById('endgame-title').textContent = '☠ YOU HAVE FALLEN ☠';
+  document.getElementById('endgame-title').style.color = 'var(--red)';
+  document.getElementById('endgame-msg').textContent = 'The Void consumed you. The Gate remains open. The world descends into darkness...';
+  document.getElementById('endgame-stats').textContent = `${G.playerName} | Lv.${G.level} | Killed ${G.kills} enemies`;
+  document.getElementById('endgame-overlay').classList.add('active');
+}
+
+// ===========================
+// TITLE SCREEN SETUP
+// ===========================
+function showCharCreate() {
+  document.getElementById('title-screen').style.display = 'none';
+  document.getElementById('char-create').style.display = 'flex';
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (document.getElementById('char-name-input') === document.activeElement) return;
+  const choices = document.querySelectorAll('#choices-area .choice-btn:not(:disabled)');
+  const num = parseInt(e.key);
+  if (num >= 1 && num <= choices.length) {
+    choices[num - 1].click();
+  }
+});
+
+// Auto-init
+updateMap('default');
+</script>
+</body>
+</html>
